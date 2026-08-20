@@ -8,6 +8,7 @@ const KEY = "kaitaka-profile";
 export const profile = {
   name: "",
   hero: "boy",     // "boy" | "girl"
+  view: "side",    // "side" | "third" — вид камеры, выбор запоминается
   beltIdx: 0,      // индекс в BELTS, 0 — белый
   unlocked: 1      // сколько глав открыто
 };
@@ -26,6 +27,7 @@ export function loadProfile(){
     if(!d) return false;
     profile.name = cleanName(d.name);
     profile.hero = d.hero === "girl" ? "girl" : "boy";
+    profile.view = d.view === "third" ? "third" : "side";
     profile.beltIdx = Number(d.beltIdx) || 0;
     profile.unlocked = Math.max(1, Number(d.unlocked) || 1);
     return !!profile.name;

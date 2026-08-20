@@ -56,6 +56,23 @@ html, body{
   font-size:13px; letter-spacing:.08em; opacity:.5; white-space:nowrap;
 }
 
+/* Смена вида. Кнопка нужна не только для красоты: на планшете
+   клавиатуры нет, а переключаться игрок должен уметь везде. */
+#view-btn{
+  position:absolute; top:16px; right:16px;
+  display:flex; align-items:center; gap:8px;
+  background:rgba(20,24,36,.72);
+  border:1px solid rgba(232,182,71,.35);
+  border-radius:6px;
+  padding:9px 14px;
+  color:var(--gi);
+  font:inherit; font-size:12px; font-weight:700; letter-spacing:.12em;
+  cursor:pointer;
+  backdrop-filter:blur(6px);
+}
+#view-btn:active{ background:var(--club); }
+#view-icon{ font-size:15px; color:var(--gold); line-height:1; }
+
 /* Экранные кнопки — только для тача. На компьютере есть клавиатура. */
 #pad{ position:absolute; left:20px; bottom:20px; display:none; }
 #acts{ position:absolute; right:20px; bottom:20px; display:none; }

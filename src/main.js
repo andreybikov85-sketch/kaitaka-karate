@@ -5,11 +5,12 @@
 
 import * as THREE from "three";
 import { initRenderer, renderer, scene, lights, followShadow } from "./scene/renderer.js";
-import { initCamera, updateCamera, camera, screenAxes, toggleCameraMode } from "./scene/camera.js";
+import { initCamera, updateCamera, camera, screenAxes, setCameraMode, toggleCameraMode } from "./scene/camera.js";
 import { buildArena } from "./scene/arena.js";
 import { initInput, keys, took } from "./core/input.js";
 import { onUpdate, onRender, startLoop } from "./core/loop.js";
 import { showStart } from "./ui/start.js";
+import { profile, saveProfile } from "./core/profile.js";
 import { makeHero } from "./fight/hero.js";
 import { DOJO } from "./data/levels/dojo.js";
 import { BELTS } from "./data/belts.js";
@@ -33,15 +34,27 @@ loading.classList.add("hidden");
 showStart(begin);
 
 const hint = document.getElementById("hint");
+const viewIcon = document.getElementById("view-icon");
+const viewText = document.getElementById("view-text");
+
+// Вид запоминается в профиле: ребёнок выбирает один раз, а не каждый запуск.
 function showView(m){
-  hint.textContent = DOJO.tip + "  ·  V — вид: " + (m === "third" ? "из-за спины" : "сбоку");
+  profile.view = m;
+  saveProfile();
+  viewIcon.textContent = m === "third" ? "◰" : "◱";
+  viewText.textContent = m === "third" ? "ИЗ-ЗА СПИНЫ" : "СБОКУ";
+  hint.textContent = DOJO.tip + "  ·  V — сменить вид";
 }
-showView("side");
 
 /* ---- Игра ---- */
 
 async function begin(p){
   const belt = BELTS[p.beltIdx];
+
+  // Вид восстанавливаем из профиля до первого кадра, чтобы игра
+  // не начиналась одним ракурсом и не перескакивала на другой.
+  setCameraMode(p.view);
+  showView(p.view);
 
   // Модель весит мегабайты — показываем загрузку, иначе экран
   // просто чернеет на несколько секунд и кажется, что игра сломалась.
