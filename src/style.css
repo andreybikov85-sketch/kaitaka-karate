@@ -161,24 +161,38 @@ html, body{
   box-shadow:0 0 0 3px rgba(232,182,71,.16);
 }
 
-.choice{ display:flex; gap:13px; }
+.choice{ display:flex; gap:16px; }
 
 .who{
-  min-width:132px;
-  background:rgba(63,58,140,.28);
-  border:1px solid rgba(242,237,226,.2);
-  border-radius:7px;
+  display:flex; flex-direction:column; align-items:center; gap:8px;
+  width:150px;
+  background:rgba(63,58,140,.22);
+  border:1px solid rgba(242,237,226,.18);
+  border-radius:10px;
   color:var(--gi);
-  font:inherit; font-size:14px; font-weight:700; letter-spacing:.1em;
-  padding:14px 20px;
+  font:inherit; font-size:13px; font-weight:700; letter-spacing:.1em;
+  padding:12px 10px 13px;
   cursor:pointer;
   transition:background .18s, border-color .18s, transform .12s;
 }
-.who:hover{ background:rgba(63,58,140,.5); }
+/* Портрет держит высоту, чтобы кнопки не прыгали, пока грузятся картинки */
+.who img{
+  height:168px; width:auto; object-fit:contain;
+  filter:drop-shadow(0 6px 10px rgba(0,0,0,.45));
+  transition:transform .18s;
+}
+.who:hover{ background:rgba(63,58,140,.42); }
 .who.on{
   background:var(--club);
   border-color:var(--gold);
-  transform:translateY(-2px);
+  transform:translateY(-3px);
+}
+.who.on img{ transform:scale(1.06); }
+
+/* Низкий экран (телефон в ландшафте, поднятая клавиатура) — портреты мельче */
+@media (max-height:700px){
+  .who img{ height:112px; }
+  .who{ width:126px; }
 }
 
 #begin{
