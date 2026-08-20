@@ -12,14 +12,18 @@ import { makeRig, poseIdle, poseWalk } from "./procedural.js";
 import { makePlaceholder, animateWalk, setBeltColor } from "./placeholder.js";
 
 // Анимации. Чего нет в assets/anims/ — просто недоступно, игра не падает.
+//
+// secs — сколько действие длится в игре. Это ТЕМП ИГРЫ, а не длина файла:
+// Mixamo отдаёт удар ногой на 1.6 секунды, что для ребёнка не бой,
+// а ожидание. Клип ускоряется до нужной длительности сам.
 const CLIPS = {
-  idle:  "assets/anims/idle.fbx",
-  walk:  "assets/anims/walk.fbx",
-  punch: "assets/anims/punch.fbx",
-  kick:  "assets/anims/kick.fbx",
-  block: "assets/anims/block.fbx",
-  hit:   "assets/anims/hit.fbx",
-  down:  "assets/anims/down.fbx"
+  idle:  { url:"assets/anims/idle.fbx" },
+  walk:  { url:"assets/anims/walk.fbx" },
+  punch: { url:"assets/anims/punch.fbx", secs:0.42 },
+  kick:  { url:"assets/anims/kick.fbx",  secs:0.62 },
+  block: { url:"assets/anims/block.fbx", secs:0.30 },
+  hit:   { url:"assets/anims/hit.fbx",   secs:0.38 },
+  down:  { url:"assets/anims/down.fbx",  secs:0.90 }
 };
 
 // Разовые: проигрываются один раз и возвращают бойца в стойку.
