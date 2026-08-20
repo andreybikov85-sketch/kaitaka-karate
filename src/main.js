@@ -1,10 +1,7 @@
 // Точка входа.
 //
 // Порядок: собрать сцену → показать экран входа → по нажатию «начать»
-// создать персонажа и запустить цикл.
-//
-// Фигура пока из коробок (fight/placeholder.js). На этапе 1 её заменит
-// модель с Mixamo, и поменяется здесь ровно одна строка — makePlaceholder.
+// загрузить персонажа и запустить цикл.
 
 import * as THREE from "three";
 import { initRenderer, renderer, scene } from "./scene/renderer.js";
@@ -12,9 +9,8 @@ import { initCamera, updateCamera, camera } from "./scene/camera.js";
 import { C } from "./scene/palette.js";
 import { initInput, keys } from "./core/input.js";
 import { onUpdate, onRender, startLoop } from "./core/loop.js";
-import { profile } from "./core/profile.js";
 import { showStart } from "./ui/start.js";
-import { makePlaceholder, animateWalk } from "./fight/placeholder.js";
+import { makeHero } from "./fight/hero.js";
 import { BELTS } from "./data/belts.js";
 
 const canvas = document.getElementById("view");
@@ -37,15 +33,22 @@ for(let i = -4; i <= 4; i++){
 
 /* ---- Экран входа ---- */
 
-document.getElementById("loading").classList.add("hidden");
+const loading = document.getElementById("loading");
+loading.classList.add("hidden");
 showStart(begin);
 
 /* ---- Игра ---- */
 
-function begin(p){
+async function begin(p){
   const belt = BELTS[p.beltIdx];
-  const hero = makePlaceholder(p.hero, belt.color);
-  scene.add(hero);
+
+  // Модель весит мегабайты — показываем загрузку, иначе экран
+  // просто чернеет на несколько секунд и кажется, что игра сломалась.
+  loading.classList.remove("hidden");
+  const hero = await makeHero(p.hero, belt.color);
+  loading.classList.add("hidden");
+
+  scene.add(hero.object);
 
   document.getElementById("hero-name").textContent = p.name;
   document.getElementById("belt-name").textContent = belt.name;
@@ -53,7 +56,7 @@ function begin(p){
   document.getElementById("belt-swatch").style.background = belt.color;
 
   const SPEED = 5.2;
-  let walkT = 0;
+  const pos = hero.object.position;
 
   onUpdate(dt => {
     const dx = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
@@ -64,20 +67,17 @@ function begin(p){
       // По диагонали скорость не должна складываться — иначе наискосок
       // персонаж идёт в полтора раза быстрее, чем прямо.
       const n = (dx && dz) ? Math.SQRT1_2 : 1;
-      hero.position.x += dx * SPEED * n * dt;
-      hero.position.z += dz * SPEED * n * dt;
-      if(dx) hero.rotation.y = dx > 0 ? 0 : Math.PI;
-      walkT += dt * 9;
-    } else {
-      walkT = 0;
+      pos.x += dx * SPEED * n * dt;
+      pos.z += dz * SPEED * n * dt;
+      if(dx) hero.object.rotation.y = dx > 0 ? 0 : Math.PI;
     }
 
-    animateWalk(hero, walkT, moving);
+    hero.update(dt, moving);
 
     // Границы татами по глубине.
-    hero.position.z = Math.max(-5.5, Math.min(5.5, hero.position.z));
+    pos.z = Math.max(-5.5, Math.min(5.5, pos.z));
 
-    updateCamera(dt, hero.position);
+    updateCamera(dt, pos);
   });
 
   onRender(() => renderer.render(scene, camera));
