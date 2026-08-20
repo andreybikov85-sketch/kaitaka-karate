@@ -8,6 +8,9 @@ import { C } from "./palette.js";
 
 export let renderer, scene;
 
+// Свет отдаётся наружу: цвет и силу задаёт арена, у каждого зала свои.
+export const lights = { hemi: null, sun: null };
+
 export function initRenderer(canvas){
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -26,7 +29,6 @@ export function initRenderer(canvas){
   scene.fog = new THREE.Fog(C.night, 24, 60);
 
   addLights();
-  addGround();
 
   window.addEventListener("resize", onResize);
   return { renderer, scene };
@@ -34,7 +36,8 @@ export function initRenderer(canvas){
 
 function addLights(){
   // Заполняющий свет: сверху цвет неба, снизу отражение от татами.
-  scene.add(new THREE.HemisphereLight(0xbcd0e8, C.tatami, 1.1));
+  lights.hemi = new THREE.HemisphereLight(0xbcd0e8, C.tatami, 1.1);
+  scene.add(lights.hemi);
 
   // Основной направленный свет — он единственный даёт тени.
   // Больше источников с тенями брать нельзя: тени дороги, а на слабом
@@ -53,24 +56,19 @@ function addLights(){
   sun.shadow.camera.far = 40;
   sun.shadow.bias = -0.0015;   // убирает полосы самозатенения на полу
 
+  lights.sun = sun;
   scene.add(sun);
   scene.add(sun.target);
 }
 
-function addGround(){
-  const mat = new THREE.MeshStandardMaterial({ color: C.tatami, roughness: 0.95 });
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 40), mat);
-  ground.rotation.x = -Math.PI / 2;
-  ground.receiveShadow = true;
-  scene.add(ground);
-
-  // Разметка татами. Без неё в 3D не читается глубина: непонятно,
-  // стоишь ты вровень с противником или в двух шагах от него.
-  const grid = new THREE.GridHelper(200, 100, C.tatami2, C.tatami2);
-  grid.position.y = 0.01;
-  grid.material.opacity = 0.35;
-  grid.material.transparent = true;
-  scene.add(grid);
+// Тень рисуется не по всему залу, а вокруг игрока: зал длиной 64 метра,
+// и одна карта теней на всю длину дала бы тени крупнее пикселя.
+export function followShadow(x, z){
+  const s = lights.sun;
+  if(!s) return;
+  s.target.position.set(x, 0, z);
+  s.target.updateMatrixWorld();
+  s.position.set(x - 9, 15, z + 7);
 }
 
 function onResize(){

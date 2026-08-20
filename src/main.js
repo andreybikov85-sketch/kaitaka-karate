@@ -1,16 +1,17 @@
 // Точка входа.
 //
-// Порядок: собрать сцену → показать экран входа → по нажатию «начать»
-// загрузить персонажа и запустить цикл.
+// Порядок: собрать сцену и арену → показать экран входа → по нажатию
+// «начать» загрузить персонажа и запустить цикл.
 
 import * as THREE from "three";
-import { initRenderer, renderer, scene } from "./scene/renderer.js";
+import { initRenderer, renderer, scene, lights, followShadow } from "./scene/renderer.js";
 import { initCamera, updateCamera, camera } from "./scene/camera.js";
-import { C } from "./scene/palette.js";
+import { buildArena } from "./scene/arena.js";
 import { initInput, keys, took } from "./core/input.js";
 import { onUpdate, onRender, startLoop } from "./core/loop.js";
 import { showStart } from "./ui/start.js";
 import { makeHero } from "./fight/hero.js";
+import { DOJO } from "./data/levels/dojo.js";
 import { BELTS } from "./data/belts.js";
 
 const canvas = document.getElementById("view");
@@ -18,23 +19,18 @@ initRenderer(canvas);
 initCamera();
 initInput();
 
-/* ---- Ориентиры на арене: без них не понять, что двигаешься ---- */
+// Эмблема клуба — единственная растровая картинка в проекте.
+// Остальное окружение рисуется кодом.
+const logo = new THREE.TextureLoader().load("assets/logo.png");
+logo.colorSpace = THREE.SRGBColorSpace;
 
-for(let i = -4; i <= 4; i++){
-  const post = new THREE.Mesh(
-    new THREE.BoxGeometry(0.3, 2.4, 0.3),
-    new THREE.MeshStandardMaterial({ color: C.wood, roughness: 0.9 })
-  );
-  post.position.set(i * 6, 1.2, -7);
-  post.castShadow = true;
-  post.receiveShadow = true;
-  scene.add(post);
-}
+buildArena(scene, DOJO, lights, logo);
 
 /* ---- Экран входа ---- */
 
 const loading = document.getElementById("loading");
 loading.classList.add("hidden");
+document.getElementById("hint").textContent = DOJO.tip;
 showStart(begin);
 
 /* ---- Игра ---- */
@@ -57,6 +53,8 @@ async function begin(p){
 
   const SPEED = 5.2;
   const pos = hero.object.position;
+  const halfLen = DOJO.length / 2 - 2;
+  const halfDep = DOJO.depth / 2 - 0.6;
 
   // Персонаж смотрит вдоль своей оси +Z. Чтобы развернуть его вправо
   // (в сторону +X мира), нужен угол +90°, влево — минус 90°.
@@ -91,9 +89,11 @@ async function begin(p){
 
     hero.update(dt, moving);
 
-    // Границы татами по глубине.
-    pos.z = Math.max(-5.5, Math.min(5.5, pos.z));
+    // Границы татами.
+    pos.x = Math.max(-halfLen, Math.min(halfLen, pos.x));
+    pos.z = Math.max(-halfDep, Math.min(halfDep, pos.z));
 
+    followShadow(pos.x, pos.z);
     updateCamera(dt, pos);
   });
 
