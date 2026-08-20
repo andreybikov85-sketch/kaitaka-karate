@@ -34,7 +34,7 @@ html, body{
 #hud{ position:absolute; top:16px; left:16px; }
 
 #belt{
-  display:flex; align-items:center; gap:10px;
+  display:flex; align-items:center; gap:9px;
   background:rgba(20,24,36,.72);
   border:1px solid rgba(232,182,71,.35);
   border-radius:6px;
@@ -47,6 +47,8 @@ html, body{
   border:1px solid rgba(0,0,0,.5);
   box-shadow:0 1px 3px rgba(0,0,0,.5);
 }
+#hero-name{ font-weight:700; }
+#belt-name{ opacity:.65; }
 #belt-rank{ color:var(--gold); font-weight:700; }
 
 #hint{
@@ -77,21 +79,97 @@ html, body{
 }
 .k:active{ background:var(--kyoku); }
 
-/* Экран загрузки */
-#loading{
+/* ---- Полноэкранные слои: загрузка и вход ---- */
+
+#loading, #start{
   position:fixed; inset:0;
   display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:10px;
   background:var(--night);
-  transition:opacity .5s ease;
+  transition:opacity .45s ease;
 }
-#loading.hidden{ opacity:0; pointer-events:none; }
+#loading{ gap:10px; }
+#loading.hidden, #start.hidden{ opacity:0; pointer-events:none; }
 
-#loading .kanji{
+.kanji{
   font-family:"Yu Mincho", "MS Mincho", serif;
-  font-size:76px;
+  font-size:72px;
   color:var(--kyoku);
   line-height:1;
 }
 .load-title{ font-size:22px; letter-spacing:.34em; margin-top:6px; }
 .load-sub{ font-size:12px; letter-spacing:.2em; opacity:.45; }
+
+/* ---- Экран входа ---- */
+
+#start{
+  /* Разрешаем скролл, если экран низкий и клавиатура телефона съела место */
+  justify-content:safe center;
+  overflow-y:auto;
+  padding:28px 20px;
+  background:radial-gradient(circle at 50% 34%, var(--night-2), var(--night) 68%);
+}
+
+#start h1{
+  font-size:27px; font-weight:800; letter-spacing:.26em;
+  margin-top:12px;
+}
+#start .sub{
+  font-size:12px; letter-spacing:.18em; opacity:.5;
+  margin-top:7px;
+}
+
+#start label, #start .label{
+  font-size:12px; letter-spacing:.22em; opacity:.65;
+  margin-top:34px; margin-bottom:11px;
+}
+
+#name{
+  width:min(320px, 78vw);
+  background:rgba(0,0,0,.35);
+  border:1px solid rgba(232,182,71,.45);
+  border-radius:7px;
+  color:var(--gi);
+  font:inherit; font-size:21px; text-align:center; letter-spacing:.07em;
+  padding:13px 16px;
+  /* Поле ввода — единственное место в игре, где текст можно выделять */
+  -webkit-user-select:text; user-select:text;
+}
+#name::placeholder{ color:rgba(242,237,226,.26); letter-spacing:.14em; }
+#name:focus{
+  outline:none;
+  border-color:var(--gold);
+  box-shadow:0 0 0 3px rgba(232,182,71,.16);
+}
+
+.choice{ display:flex; gap:13px; }
+
+.who{
+  min-width:132px;
+  background:rgba(63,58,140,.28);
+  border:1px solid rgba(242,237,226,.2);
+  border-radius:7px;
+  color:var(--gi);
+  font:inherit; font-size:14px; font-weight:700; letter-spacing:.1em;
+  padding:14px 20px;
+  cursor:pointer;
+  transition:background .18s, border-color .18s, transform .12s;
+}
+.who:hover{ background:rgba(63,58,140,.5); }
+.who.on{
+  background:var(--club);
+  border-color:var(--gold);
+  transform:translateY(-2px);
+}
+
+#begin{
+  margin-top:38px;
+  background:var(--kyoku);
+  border:none; border-radius:7px;
+  color:#fff;
+  font:inherit; font-size:15px; font-weight:800; letter-spacing:.2em;
+  padding:16px 46px;
+  cursor:pointer;
+  transition:filter .18s, opacity .18s;
+}
+#begin:hover:not(:disabled){ filter:brightness(1.16); }
+#begin:disabled{ opacity:.3; cursor:default; }
