@@ -7,7 +7,7 @@ import * as THREE from "three";
 import { initRenderer, renderer, scene } from "./scene/renderer.js";
 import { initCamera, updateCamera, camera } from "./scene/camera.js";
 import { C } from "./scene/palette.js";
-import { initInput, keys } from "./core/input.js";
+import { initInput, keys, took } from "./core/input.js";
 import { onUpdate, onRender, startLoop } from "./core/loop.js";
 import { showStart } from "./ui/start.js";
 import { makeHero } from "./fight/hero.js";
@@ -64,9 +64,14 @@ async function begin(p){
   let faceTarget = Math.PI / 2;
 
   onUpdate(dt => {
+    // Удары разбираем ДО движения. Порядок важен: если сначала обработать
+    // движение, только что начатый удар собьётся в стойку в том же кадре.
+    if(took("kick"))  hero.act("kick");
+    if(took("punch")) hero.act("punch");
+
     const dx = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
     const dz = (keys.down  ? 1 : 0) - (keys.up   ? 1 : 0);
-    const moving = !!(dx || dz);
+    const moving = !hero.busy && !!(dx || dz);
 
     if(moving){
       // По диагонали скорость не должна складываться — иначе наискосок

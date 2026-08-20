@@ -58,10 +58,13 @@ html, body{
 
 /* Экранные кнопки — только для тача. На компьютере есть клавиатура. */
 #pad{ position:absolute; left:20px; bottom:20px; display:none; }
+#acts{ position:absolute; right:20px; bottom:20px; display:none; }
 @media (pointer:coarse){
-  #pad{ display:block; }
+  #pad, #acts{ display:block; }
   #hint{ display:none; }
 }
+
+.act{ width:96px; height:96px; border-radius:50%; font-size:15px; font-weight:700; letter-spacing:.08em; }
 
 .dpad{
   display:grid;

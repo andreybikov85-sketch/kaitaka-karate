@@ -27,8 +27,16 @@ export class Character {
     this.mixer = new THREE.AnimationMixer(this.model);
     this.actions = {};
     this.current = null;
+    this.once = null;          // разовая анимация: удар, падение
     this.height = height;
+
+    this.mixer.addEventListener("finished", e => {
+      if(e.action === this.once) this.once = null;
+    });
   }
+
+  // Занят разовой анимацией — движение и новые удары пока запрещены.
+  get busy(){ return !!this.once; }
 
   // Добавить клип анимации под коротким именем.
   addClip(name, clip){
@@ -41,6 +49,7 @@ export class Character {
   // Переключение с плавным переходом. Без перехода смена стойки на удар
   // выглядит как подмена кадра — персонаж «щёлкает» в новую позу.
   play(name, fade = 0.18){
+    if(this.once) return;                 // разовая анимация главнее
     const next = this.actions[name];
     if(!next || next === this.current) return;
     next.reset().play();
@@ -48,7 +57,26 @@ export class Character {
     this.current = next;
   }
 
-  update(dt){ this.mixer.update(dt); }
+  // Разовая анимация: проиграть один раз и вернуться в стойку.
+  playOnce(name, fade = 0.08){
+    const a = this.actions[name];
+    if(!a || this.once) return false;
+    a.reset();
+    a.setLoop(THREE.LoopOnce, 1);
+    a.clampWhenFinished = true;
+    a.fadeIn(fade).play();
+    if(this.current) this.current.fadeOut(fade);
+    this.once = a;
+    return true;
+  }
+
+  update(dt){
+    this.mixer.update(dt);
+    // Разовая закончилась — возвращаем цикл, который шёл до неё.
+    if(!this.once && this.current && this.current.getEffectiveWeight() < 0.99){
+      this.current.reset().fadeIn(0.12).play();
+    }
+  }
 }
 
 // Загрузить персонажа. Возвращает Character.
@@ -90,6 +118,17 @@ export async function loadCharacter(url){
   const ch = new Character(root, size.y * scale);
   for(const clip of fbx.animations || []) ch.addClip(clip.name || "clip", clip);
   return ch;
+}
+
+// Догрузить все анимации, какие найдутся. Отсутствующие пропускаются молча:
+// игра должна работать и с половиной набора.
+export async function loadClips(ch, list){
+  const got = [];
+  for(const [name, url] of Object.entries(list)){
+    try { await loadClip(ch, name, url); got.push(name); }
+    catch(e){ /* файла нет — этот приём просто недоступен */ }
+  }
+  return got;
 }
 
 // Догрузить анимацию из отдельного файла и привязать к уже загруженному персонажу.

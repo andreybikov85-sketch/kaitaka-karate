@@ -7,9 +7,23 @@
 //   hero.setBelt(color)  — перекрасить пояс
 //   hero.real            — true, если это модель, а не заглушка
 
-import { loadCharacter } from "./character.js";
+import { loadCharacter, loadClips } from "./character.js";
 import { makeRig, poseIdle, poseWalk } from "./procedural.js";
 import { makePlaceholder, animateWalk, setBeltColor } from "./placeholder.js";
+
+// Анимации. Чего нет в assets/anims/ — просто недоступно, игра не падает.
+const CLIPS = {
+  idle:  "assets/anims/idle.fbx",
+  walk:  "assets/anims/walk.fbx",
+  punch: "assets/anims/punch.fbx",
+  kick:  "assets/anims/kick.fbx",
+  block: "assets/anims/block.fbx",
+  hit:   "assets/anims/hit.fbx",
+  down:  "assets/anims/down.fbx"
+};
+
+// Разовые: проигрываются один раз и возвращают бойца в стойку.
+const ONCE = ["punch", "kick", "hit", "down"];
 
 // Файлы пробуются по порядку. Как только в assets/models/ появятся boy.fbx
 // и girl.fbx, они подхватятся сами — правок в коде не нужно.
@@ -22,7 +36,8 @@ export async function makeHero(who, beltColor){
   for(const url of MODELS[who] || []){
     try {
       const ch = await loadCharacter(url);
-      return realHero(ch, url);
+      const clips = await loadClips(ch, CLIPS);
+      return realHero(ch, url, clips);
     } catch(e){
       // Файла нет или он битый — молча пробуем следующий.
       // Игра не должна вставать из-за отсутствующей модели.
@@ -31,24 +46,38 @@ export async function makeHero(who, beltColor){
   return boxHero(who, beltColor);
 }
 
-function realHero(ch, url){
+function realHero(ch, url, clips){
   const rig = makeRig(ch.root);
   let t = 0;
 
-  // Настоящие клипы главнее: как только в assets/anims/ появятся файлы,
-  // они вытеснят анимацию кодом. До этого двигаем костями сами.
-  const hasClips = !!(ch.actions.walk || ch.actions.idle);
+  // Клипы стойки и ходьбы главнее кода. Но набор может быть неполным:
+  // пока есть только удар, циклы по-прежнему считаются формулой.
+  const cycleFromClips = !!(ch.actions.walk || ch.actions.idle);
 
   return {
     object: ch.root,
     real: true,
     source: url,
     rigged: rig.ok,
-    mode: hasClips ? "клипы" : (rig.ok ? "код" : "статуя"),
+    clips,
+    mode: cycleFromClips ? "клипы" : (rig.ok ? "код" : "статуя"),
+
+    // Занят ударом — движение и новый удар запрещены. Ровно та же логика,
+    // что в 2D-прототипе: без неё удар сбрасывается в стойку в том же кадре.
+    get busy(){ return ch.busy; },
+
+    // Разовое действие: удар, получение урона, падение.
+    act(name){
+      if(!ONCE.includes(name)) return false;
+      return ch.playOnce(name);
+    },
 
     update(dt, moving){
-      if(hasClips){
-        ch.update(dt);
+      ch.update(dt);                 // разовые клипы крутятся всегда
+
+      if(ch.busy) return;            // во время удара позу не трогаем
+
+      if(cycleFromClips){
         ch.play(moving ? "walk" : "idle");
         return;
       }
@@ -73,6 +102,10 @@ function boxHero(who, beltColor){
     object: fig,
     real: false,
     source: null,
+    clips: [],
+    mode: "коробки",
+    busy: false,
+    act(){ return false; },
     update(dt, moving){
       t = moving ? t + dt * 9 : 0;
       animateWalk(fig, t, moving);
