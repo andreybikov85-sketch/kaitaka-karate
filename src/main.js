@@ -5,7 +5,7 @@
 
 import * as THREE from "three";
 import { initRenderer, renderer, scene, lights, followShadow } from "./scene/renderer.js";
-import { initCamera, updateCamera, camera } from "./scene/camera.js";
+import { initCamera, updateCamera, camera, screenAxes, toggleCameraMode } from "./scene/camera.js";
 import { buildArena } from "./scene/arena.js";
 import { initInput, keys, took } from "./core/input.js";
 import { onUpdate, onRender, startLoop } from "./core/loop.js";
@@ -30,8 +30,13 @@ buildArena(scene, DOJO, lights, logo);
 
 const loading = document.getElementById("loading");
 loading.classList.add("hidden");
-document.getElementById("hint").textContent = DOJO.tip;
 showStart(begin);
+
+const hint = document.getElementById("hint");
+function showView(m){
+  hint.textContent = DOJO.tip + "  ·  V — вид: " + (m === "third" ? "из-за спины" : "сбоку");
+}
+showView("side");
 
 /* ---- Игра ---- */
 
@@ -56,9 +61,8 @@ async function begin(p){
   const halfLen = DOJO.length / 2 - 2;
   const halfDep = DOJO.depth / 2 - 0.6;
 
-  // Персонаж смотрит вдоль своей оси +Z. Чтобы развернуть его вправо
-  // (в сторону +X мира), нужен угол +90°, влево — минус 90°.
-  // Ноль и 180° разворачивали бы его к камере и спиной к игроку.
+  // Персонаж смотрит вдоль своей оси +Z: угол 0 — на камеру в виде сбоку.
+  // Поэтому направление движения переводится в угол как atan2(x, z).
   let faceTarget = Math.PI / 2;
 
   onUpdate(dt => {
@@ -66,18 +70,29 @@ async function begin(p){
     // движение, только что начатый удар собьётся в стойку в том же кадре.
     if(took("kick"))  hero.act("kick");
     if(took("punch")) hero.act("punch");
+    if(took("view"))  showView(toggleCameraMode());
 
-    const dx = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
-    const dz = (keys.down  ? 1 : 0) - (keys.up   ? 1 : 0);
-    const moving = !hero.busy && !!(dx || dz);
+    // Стрелки задают направление относительно ЭКРАНА, а не мира: вверх —
+    // это всегда «от игрока вглубь», в каком бы виде мы ни были. Иначе при
+    // переключении камеры управление вывернулось бы наизнанку.
+    const a = screenAxes();
+    const side = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+    const fwd  = (keys.up    ? 1 : 0) - (keys.down ? 1 : 0);
+
+    let mx = a.fx * fwd + a.rx * side;
+    let mz = a.fz * fwd + a.rz * side;
+    const moving = !hero.busy && !!(mx || mz);
 
     if(moving){
       // По диагонали скорость не должна складываться — иначе наискосок
       // персонаж идёт в полтора раза быстрее, чем прямо.
-      const n = (dx && dz) ? Math.SQRT1_2 : 1;
-      pos.x += dx * SPEED * n * dt;
-      pos.z += dz * SPEED * n * dt;
-      if(dx) faceTarget = dx > 0 ? Math.PI / 2 : -Math.PI / 2;
+      const len = Math.hypot(mx, mz);
+      mx /= len; mz /= len;
+      pos.x += mx * SPEED * dt;
+      pos.z += mz * SPEED * dt;
+
+      if(a.turnToMove) faceTarget = Math.atan2(mx, mz);
+      else if(side)    faceTarget = side > 0 ? Math.PI / 2 : -Math.PI / 2;
     }
 
     // Плавный разворот по кратчайшей дуге. Мгновенный поворот на 180°
