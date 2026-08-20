@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>САША — ПУТЬ КИОКУШИН · КАЙТАКА</title>
+<link rel="stylesheet" href="src/style.css">
+</head>
+<body>
+
+<header>
+  <div class="kanji">鷹</div>
+  <h1>САША — ПУТЬ КИОКУШИН<small>КАЙТАКА · МУРОМ · ДО ЧЁРНОГО ПОЯСА</small></h1>
+  <button id="sound">ЗВУК: ВКЛ</button>
+</header>
+
+<div class="frame"><canvas id="game"></canvas></div>
+
+<div class="pad">
+  <div class="dpad">
+    <div class="sp"></div><button class="k" data-k="up">▲</button><div class="sp"></div>
+    <button class="k" data-k="left">◀</button><div class="sp"></div><button class="k" data-k="right">▶</button>
+    <div class="sp"></div><button class="k" data-k="down">▼</button><div class="sp"></div>
+  </div>
+  <div class="acts">
+    <button class="k" data-k="punch">ЦУКИ</button>
+    <button class="k" data-k="kick">ГЕРИ</button>
+    <button class="k" data-k="block">БЛОК</button>
+    <button class="k" data-k="kiai">КИАЙ</button>
+  </div>
+</div>
+
+<div class="keys">
+  <span><b>◀ ▶ ▲ ▼</b> движение</span>
+  <span><b>J</b> цуки — удар рукой</span>
+  <span><b>K</b> гери — удар ногой</span>
+  <span><b>L</b> блок</span>
+  <span><b>ПРОБЕЛ</b> киай — когда шкала духа полна</span>
+  <span><b>ENTER</b> дальше</span>
+  <span><b>P</b> пауза</span>
+</div>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

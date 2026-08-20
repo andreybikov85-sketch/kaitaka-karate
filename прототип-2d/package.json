@@ -1,0 +1,10 @@
+{
+  "name": "sasha-kyokushin",
+  "version": "1.0.0",
+  "description": "Браузерный beat'em'up про юного каратиста Сашу. Клуб КАЙТАКА, Муром.",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "build": "node build.js"
+  }
+}

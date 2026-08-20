@@ -1,0 +1,1523 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>САША — ПУТЬ КИОКУШИН · КАЙТАКА</title>
+<style>
+:root{
+  --night:#141824;
+  --night-2:#1d2333;
+  --tatami:#2f5d50;
+  --kyoku:#c1272d;
+  --club:#3f3a8c;
+  --gi:#f2ede2;
+  --gold:#e8b647;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{
+  background:
+    radial-gradient(120% 80% at 50% -10%, #26304a 0%, var(--night) 60%, #0d1017 100%);
+  color:var(--gi);
+  font-family:system-ui,"Segoe UI",Roboto,sans-serif;
+  display:flex;flex-direction:column;align-items:center;
+  padding:14px 10px 20px;gap:10px;
+  overflow-x:hidden;
+}
+header{display:flex;align-items:center;gap:12px;width:100%;max-width:920px}
+.kanji{
+  font-size:30px;line-height:1;color:#6b64d8;
+  text-shadow:0 0 14px rgba(63,58,140,.7);
+  font-family:"Yu Mincho","MS Mincho",serif;
+}
+h1{
+  font-family:"Arial Black","Arial Bold",Impact,sans-serif;
+  font-size:15px;letter-spacing:.22em;margin:0;font-weight:900;
+}
+h1 small{display:block;font-size:9px;letter-spacing:.34em;color:#8b95ad;font-weight:400;margin-top:3px}
+#sound{
+  margin-left:auto;background:none;border:1px solid #3b4560;color:#9aa5bd;
+  font-size:11px;letter-spacing:.12em;padding:7px 12px;border-radius:2px;cursor:pointer;
+  font-family:inherit;
+}
+#sound:hover{border-color:var(--gold);color:var(--gold)}
+.frame{
+  width:100%;max-width:920px;border:1px solid #333d57;
+  box-shadow:0 0 0 6px #0d1017, 0 18px 50px rgba(0,0,0,.6);
+  background:#000;line-height:0;position:relative;
+}
+canvas{
+  width:100%;height:auto;display:block;
+  image-rendering:pixelated;image-rendering:crisp-edges;
+  touch-action:none;
+}
+.pad{width:100%;max-width:920px;display:flex;justify-content:space-between;gap:14px;user-select:none}
+.dpad{display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(3,44px);gap:4px}
+.acts{display:grid;grid-template-columns:repeat(2,74px);grid-template-rows:repeat(2,44px);gap:6px;align-self:end}
+button.k{
+  background:#1d2333;border:1px solid #3b4560;color:#c8d0e2;border-radius:3px;
+  font-size:11px;font-weight:700;letter-spacing:.06em;cursor:pointer;font-family:inherit;
+}
+button.k:active,button.k.on{background:var(--club);border-color:var(--club);color:#fff}
+.dpad .sp{visibility:hidden}
+.keys{
+  width:100%;max-width:920px;font-size:11px;color:#78829a;letter-spacing:.05em;
+  display:flex;flex-wrap:wrap;gap:4px 18px;line-height:1.6;
+}
+.keys b{color:#c8d0e2;font-weight:700}
+@media (max-width:700px){
+  h1{font-size:12px}
+  .dpad{grid-template-columns:repeat(3,46px)}
+  .acts{grid-template-columns:repeat(2,66px)}
+}
+
+</style>
+</head>
+<body>
+
+<header>
+  <div class="kanji">鷹</div>
+  <h1>САША — ПУТЬ КИОКУШИН<small>КАЙТАКА · МУРОМ · ДО ЧЁРНОГО ПОЯСА</small></h1>
+  <button id="sound">ЗВУК: ВКЛ</button>
+</header>
+
+<div class="frame"><canvas id="game"></canvas></div>
+
+<div class="pad">
+  <div class="dpad">
+    <div class="sp"></div><button class="k" data-k="up">▲</button><div class="sp"></div>
+    <button class="k" data-k="left">◀</button><div class="sp"></div><button class="k" data-k="right">▶</button>
+    <div class="sp"></div><button class="k" data-k="down">▼</button><div class="sp"></div>
+  </div>
+  <div class="acts">
+    <button class="k" data-k="punch">ЦУКИ</button>
+    <button class="k" data-k="kick">ГЕРИ</button>
+    <button class="k" data-k="block">БЛОК</button>
+    <button class="k" data-k="kiai">КИАЙ</button>
+  </div>
+</div>
+
+<div class="keys">
+  <span><b>◀ ▶ ▲ ▼</b> движение</span>
+  <span><b>J</b> цуки — удар рукой</span>
+  <span><b>K</b> гери — удар ногой</span>
+  <span><b>L</b> блок</span>
+  <span><b>ПРОБЕЛ</b> киай — когда шкала духа полна</span>
+  <span><b>ENTER</b> дальше</span>
+  <span><b>P</b> пауза</span>
+</div>
+
+<script>
+(() => {
+"use strict";
+/* ===== src/config.js ===== */
+// Константы игры: размеры холста, пояса, уровни, типы противников.
+// Правки баланса делай здесь — код логики трогать не нужно.
+const W = 480;
+const H = 270;
+
+// Пояса киокушинкай по порядку. c — цвет пояса, s — цвет полоски.
+const BELTS = [
+  { n:"Синий с жёлтой полоской", kyu:"7 кю", c:"#2f6fd0", s:"#f2c832" },
+  { n:"Жёлтый",                  kyu:"6 кю", c:"#f2c832", s:null      },
+  { n:"Жёлтый с зелёной полоской",kyu:"5 кю", c:"#f2c832", s:"#2b8a4a" },
+  { n:"Зелёный",                 kyu:"4 кю", c:"#2b8a4a", s:null      },
+  { n:"Зелёный с коричневой полоской",kyu:"3 кю", c:"#2b8a4a", s:"#7a4b20" },
+  { n:"Коричневый",              kyu:"2 кю", c:"#7a4b20", s:null      },
+  { n:"Коричневый с чёрной полоской",kyu:"1 кю", c:"#7a4b20", s:"#15151c" },
+  { n:"Чёрный",                  kyu:"1 дан", c:"#15151c", s:"#e8b647" },
+  { n:"Чёрный",                  kyu:"1 дан", c:"#15151c", s:"#e8b647" }
+];
+
+// Уровни. waves — волны противников до босса, каждая запись [тип, количество].
+const LEVELS = [
+  { name:"ДОДЗЁ",           jp:"道場",  theme:"dojo",
+    waves:[[["makiwara",2]],[["makiwara",2],["kohai",1]],[["kohai",2]]],
+    boss:{ type:"bag", name:"ТЯЖЁЛЫЙ МЕШОК", hp:90 },
+    tip:"J — цуки. K — гери. L — блок. Разбей макивары." },
+  { name:"ШКОЛЬНЫЙ ДВОР",   jp:"校庭",  theme:"yard",
+    waves:[[["kohai",2]],[["kohai",3]],[["kohai",2],["hayai",1]]],
+    boss:{ type:"kohai", name:"СЭМПАЙ КУМА", hp:130, big:1 },
+    tip:"Держись сбоку — бей и отходи." },
+  { name:"ПАРК",            jp:"公園",  theme:"park",
+    waves:[[["kohai",2],["thrower",1]],[["thrower",2]],[["kohai",2],["thrower",1]]],
+    boss:{ type:"thrower", name:"МЯЧ-МАСТЕР ТАКА", hp:150, big:1 },
+    tip:"Мяч летит по прямой — сойди вверх или вниз." },
+  { name:"СТАРЫЙ СПОРТЗАЛ", jp:"体育館", theme:"gym",
+    waves:[[["kohai",3]],[["kabe",1],["kohai",2]],[["kabe",2],["hayai",1]]],
+    boss:{ type:"kabe", name:"СТЕНА ОКАМИ", hp:180, big:1 },
+    tip:"Кто держит блок — ждёт. Бей сразу после его атаки." },
+  { name:"КРЫШИ ГОРОДА",    jp:"屋根",  theme:"roofs",
+    waves:[[["hayai",3]],[["hayai",2],["thrower",1]],[["hayai",3],["kohai",1]]],
+    boss:{ type:"hayai", name:"ТЕНЬ КАГЭ", hp:190, big:1 },
+    tip:"Быстрые бьют первыми — блокируй и отвечай." },
+  { name:"МОСТ",            jp:"橋",    theme:"bridge",
+    waves:[[["kohai",2],["hayai",2]],[["thrower",2],["kabe",1]],[["hayai",2],["kabe",2]]],
+    boss:{ type:"kohai", name:"ОНИ С МОСТА", hp:200, big:1 },
+    tip:"Копи дух и бей КИАЙ, когда окружают." },
+  { name:"ГОРНЫЙ ХРАМ",     jp:"山寺",  theme:"temple",
+    waves:[[["kabe",2],["thrower",1]],[["hayai",3],["kabe",1]],[["kabe",2],["kohai",2],["thrower",1]]],
+    boss:{ type:"kabe", name:"ТЭНГУ ХРАМА", hp:215, big:1 },
+    tip:"Не спеши. Один удар — шаг назад." },
+  { name:"ФИНАЛЬНЫЙ ТАТАМИ",jp:"畳",    theme:"tatami",
+    waves:[[["kohai",2],["hayai",2]],[["kabe",2],["thrower",2]]],
+    boss:{ type:"sensei", name:"СЭНСЭЙ КУРО", hp:250, big:1 },
+    tip:"Три фазы. Он ускоряется — держи дистанцию." }
+];
+
+// Характеристики противников.
+// hp — здоровье, sp — скорость, dmg — урон, reach — дальность атаки,
+// cd — пауза между атаками (сек), guard — умеет блокировать, ranged — бьёт издалека,
+// stat — неподвижная цель (макивара, мешок).
+const TYPES = {
+  makiwara:{ hp:26, sp:0,   dmg:0,  reach:0,  cd:99, gi:"#8a6b45", belt:"#5c452c", label:"макивара", stat:1 },
+  kohai:   { hp:40, sp:26,  dmg:8,  reach:26, cd:1.5, gi:"#dfe4ee", belt:"#f2c832", label:"кохай" },
+  thrower: { hp:34, sp:22,  dmg:9,  reach:150,cd:2.0, gi:"#d8dbc8", belt:"#2f6fd0", label:"метатель", ranged:1 },
+  hayai:   { hp:30, sp:52,  dmg:7,  reach:24, cd:0.95,gi:"#cfd6e6", belt:"#2b8a4a", label:"быстрый" },
+  kabe:    { hp:70, sp:20,  dmg:11, reach:27, cd:1.9, gi:"#c9c2b4", belt:"#7a4b20", label:"блокирующий", guard:1 },
+  bag:     { hp:90, sp:0,   dmg:0,  reach:0,  cd:99, gi:"#7a4b20", belt:"#4a2c14", label:"мешок", stat:1 },
+  sensei:  { hp:340,sp:34,  dmg:11, reach:30, cd:1.25,gi:"#2b2f3d", belt:"#15151c", label:"сэнсэй", guard:1 }
+};
+
+/* ===== src/audio.js ===== */
+// Звук. Всё синтезируется через WebAudio — звуковых файлов в проекте нет.
+
+let soundOn = true;
+let actx = null;
+
+// Контекст создаётся только после действия пользователя — таково требование браузеров.
+function ac(){
+  if(!actx){
+    try { actx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch(e){ /* звука не будет, игра работает дальше */ }
+  }
+  return actx;
+}
+function isSoundOn(){ return soundOn; }
+function toggleSound(){
+  soundOn = !soundOn;
+  if(soundOn){ ac(); S.pick(); }
+  return soundOn;
+}
+
+function beep(freq, dur, type, vol, slide){
+  if(!soundOn) return;
+  const a = ac(); if(!a) return;
+  const o = a.createOscillator(), g = a.createGain();
+  o.type = type || "square";
+  o.frequency.setValueAtTime(freq, a.currentTime);
+  if(slide) o.frequency.exponentialRampToValueAtTime(Math.max(40, slide), a.currentTime + dur);
+  g.gain.setValueAtTime(vol || 0.08, a.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + dur);
+  o.connect(g); g.connect(a.destination);
+  o.start(); o.stop(a.currentTime + dur + 0.02);
+}
+
+function noise(dur, vol){
+  if(!soundOn) return;
+  const a = ac(); if(!a) return;
+  const n = a.sampleRate * dur;
+  const buf = a.createBuffer(1, n, a.sampleRate);
+  const d = buf.getChannelData(0);
+  for(let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+  const s = a.createBufferSource(); s.buffer = buf;
+  const g = a.createGain(); g.gain.value = vol || 0.12;
+  s.connect(g); g.connect(a.destination);
+  s.start();
+}
+const S = {
+  punch(){ beep(320, 0.06, "square", 0.05, 180); noise(0.05, 0.06); },
+  hit(){ noise(0.09, 0.14); beep(180, 0.08, "square", 0.06, 90); },
+  kick(){ beep(220, 0.09, "sawtooth", 0.06, 120); noise(0.07, 0.1); },
+  block(){ beep(140, 0.07, "triangle", 0.07, 110); },
+  hurt(){ beep(150, 0.16, "sawtooth", 0.07, 70); },
+  kiai(){ beep(520, 0.28, "square", 0.09, 120); noise(0.22, 0.16); },
+  pick(){ beep(660, 0.07, "triangle", 0.07); beep(990, 0.09, "triangle", 0.06); },
+  down(){ beep(120, 0.3, "sawtooth", 0.08, 50); },
+  throwBall(){ beep(400, 0.08, "triangle", 0.05, 240); },
+  belt(){ [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.18, "triangle", 0.07), i * 130)); },
+  lose(){ [392, 349, 294, 220].forEach((f, i) => setTimeout(() => beep(f, 0.25, "triangle", 0.07), i * 180)); }
+};
+
+/* ===== src/input.js ===== */
+// Ввод: клавиатура и экранные кнопки для планшета.
+//
+// keys[k]  — кнопка удерживается прямо сейчас
+// took(k)  — кнопка была нажата и это нажатие ещё не обработано (сбрасывается при чтении)
+const keys = {
+  up: 0, down: 0, left: 0, right: 0,
+  punch: 0, kick: 0, block: 0, kiai: 0,
+  enter: 0, pause: 0
+};
+
+const pressed = {};
+
+const MAP = {
+  ArrowUp: "up",    KeyW: "up",
+  ArrowDown: "down", KeyS: "down",
+  ArrowLeft: "left", KeyA: "left",
+  ArrowRight: "right", KeyD: "right",
+  KeyJ: "punch", KeyZ: "punch",
+  KeyK: "kick",  KeyX: "kick",
+  KeyL: "block", KeyC: "block",
+  Space: "kiai",
+  Enter: "enter",
+  KeyP: "pause", Escape: "pause"
+};
+
+const DIRS = new Set(["up", "down", "left", "right"]);
+function took(k){
+  if(pressed[k]){ pressed[k] = 0; return true; }
+  return false;
+}
+function initInput(cv){
+  addEventListener("keydown", e => {
+    const k = MAP[e.code];
+    if(!k) return;
+    e.preventDefault();
+    if(!keys[k]) pressed[k] = 1;
+    keys[k] = 1;
+    ac();
+  });
+
+  addEventListener("keyup", e => {
+    const k = MAP[e.code];
+    if(!k) return;
+    e.preventDefault();
+    keys[k] = 0;
+  });
+
+  // Экранные кнопки. Крестовина не подтверждает экраны — иначе меню проскакивает.
+  document.querySelectorAll("button.k").forEach(b => {
+    const k = b.dataset.k;
+    const isDir = DIRS.has(k);
+
+    const on = e => {
+      e.preventDefault();
+      if(!keys[k]) pressed[k] = 1;
+      keys[k] = 1;
+      if(!isDir){ keys.enter = 1; pressed.enter = 1; }
+      b.classList.add("on");
+      ac();
+    };
+    const off = e => {
+      e.preventDefault();
+      keys[k] = 0;
+      if(!isDir) keys.enter = 0;
+      b.classList.remove("on");
+    };
+
+    b.addEventListener("pointerdown", on);
+    b.addEventListener("pointerup", off);
+    b.addEventListener("pointerleave", off);
+    b.addEventListener("pointercancel", off);
+  });
+
+  // Касание холста — подтверждение на экранах заставок.
+  cv.addEventListener("pointerdown", e => {
+    e.preventDefault();
+    pressed.enter = 1;
+    keys.enter = 1;
+    ac();
+  });
+  cv.addEventListener("pointerup", () => { keys.enter = 0; });
+}
+
+/* ===== src/state.js ===== */
+// Общее состояние игры. Все модули читают и меняют объект G.
+//
+// G.state — какой экран сейчас активен:
+//   title | intro | play | pause | belt | gameover | win
+const G = {
+  state: "title",
+  unlocked: 1,      // сколько уровней открыто
+  selLevel: 0,      // выбранный в меню уровень
+  lvl: 0,
+  beltIdx: 0,
+  lives: 3,
+  seg: 0,           // номер текущей волны
+  bossFight: false,
+  cleared: false,   // волна зачищена, идёт переход к следующей
+  camX: 0,
+  t: 0,             // общее время, для анимаций
+  shake: 0,
+  flash: 0,
+  msg: null,
+  msgT: 0,
+  screenT: 0,       // время на текущем экране
+  enemies: [],
+  shots: [],
+  items: [],
+  fx: []
+};
+const P = {
+  x: 60, y: 220, z: 0, vz: 0,
+  facing: 1,
+  hp: 100, maxhp: 100,
+  spirit: 0,
+  st: "idle", stT: 0,
+  inv: 0,            // неуязвимость после получения урона
+  anim: 0,
+  hits: null,        // кого уже задел текущий удар
+  dead: false
+};
+
+const SAVE_KEY = "sasha-kyokushin-progress";
+function loadProgress(){
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if(raw){
+      const d = JSON.parse(raw);
+      if(d && d.unlocked >= 1 && d.unlocked <= LEVELS.length) G.unlocked = d.unlocked;
+    }
+  } catch(e){ /* приватный режим — играем без сохранения */ }
+}
+function saveProgress(){
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ unlocked: G.unlocked })); }
+  catch(e){ /* не критично */ }
+}
+
+// Рост сложности по уровням. Урон растёт медленнее здоровья — так честнее для ребёнка.
+function mul(){
+  return { hp: 1 + G.lvl * 0.10, sp: 1 + G.lvl * 0.05, dmg: 1 + G.lvl * 0.06 };
+}
+function resetPlayer(full){
+  P.x = G.camX + 60;
+  P.y = 225; P.z = 0; P.vz = 0;
+  P.facing = 1;
+  P.st = "idle"; P.stT = 0;
+  P.inv = 1.2;
+  P.dead = false;
+  P.anim = 0;
+  P.hp = P.maxhp;
+  if(full) P.spirit = 0;
+}
+function startLevel(i){
+  G.lvl = i;
+  G.beltIdx = i;
+  G.lives = 3;
+  G.seg = 0;
+  G.bossFight = false;
+  G.cleared = false;
+  G.camX = 0;
+  G.enemies = []; G.shots = []; G.items = []; G.fx = [];
+  resetPlayer(true);
+  G.state = "intro";
+  G.screenT = 0;
+}
+function makeEnemy(type, x, y, o){
+  const T = TYPES[type];
+  return {
+    type, x, y, z: 0, vz: 0, facing: -1,
+    hp: o.hp, maxhp: o.hp,
+    dmg: o.dmg !== undefined ? o.dmg : T.dmg,
+    sp: o.sp !== undefined ? o.sp : T.sp,
+    big: o.big || 1,
+    boss: o.boss || 0,
+    name: o.name || "",
+    st: "walk", stT: 0,
+    cd: 0.6 + Math.random() * 0.8,
+    guardT: 0, hurt: 0, dying: 0,
+    anim: Math.random() * 6,
+    didHit: 0,
+    phase: 1,
+    entered: false
+  };
+}
+function spawnWave(){
+  const L = LEVELS[G.lvl], m = mul();
+  G.enemies = [];
+
+  if(G.seg >= L.waves.length){
+    // Босс уровня.
+    G.bossFight = true;
+    const b = L.boss, T = TYPES[b.type];
+    G.enemies.push(makeEnemy(b.type, G.camX + W - 70, 220, {
+      hp: Math.round(b.hp * (1 + G.lvl * 0.05)),
+      big: 1.35, boss: 1, name: b.name,
+      dmg: Math.round(T.dmg * m.dmg),
+      sp: T.sp * m.sp * 1.05
+    }));
+    G.msg = b.name; G.msgT = 2.2;
+    S.down();
+  } else {
+    let n = 0;
+    L.waves[G.seg].forEach(([type, count]) => {
+      for(let i = 0; i < count; i++){
+        const T = TYPES[type];
+        // Неподвижные цели ставим внутри арены, живые входят сбоку.
+        const sx = T.stat ? (G.camX + 170 + n * 66) : (G.camX + W + 24 + n * 34);
+        G.enemies.push(makeEnemy(type, sx, 186 + ((n * 37) % 62), {
+          hp: Math.round(T.hp * m.hp),
+          dmg: Math.round(T.dmg * m.dmg),
+          sp: T.sp * m.sp
+        }));
+        n++;
+      }
+    });
+  }
+  G.cleared = false;
+}
+
+// Переход к следующей волне.
+//
+// Раньше волна появлялась только когда игрок сам отходил вправо. После киай,
+// который выносит всю группу разом, Саша часто оставался у левого края — камера
+// доезжала, новых врагов не было, и игра выглядела зависшей. Теперь появление
+// волны зависит только от камеры, а игрока она подтягивает за собой.
+function advanceWave(dt){
+  if(!G.cleared || G.bossFight) return;
+
+  const target = (G.seg + 1) * W;
+
+  if(G.camX < target - 0.5){
+    G.camX = Math.min(target, G.camX + Math.max(60, (target - G.camX) * 3) * dt);
+    if(P.x < G.camX + 40) P.x = G.camX + 40;
+    return;
+  }
+
+  G.camX = target;
+  G.seg++;
+  spawnWave();
+}
+
+/* ===== src/render/canvas.js ===== */
+// Холст и общие помощники отрисовки.
+const cv = document.getElementById("game");
+cv.width = W;
+cv.height = H;
+const ctx = cv.getContext("2d");
+ctx.imageSmoothingEnabled = false;
+
+// Логотип клуба КАЙТАКА. Пока не загрузился — рисуем запасной вариант.
+const LOGO = new Image();
+const logo = { ok: false };
+LOGO.onload = () => { logo.ok = true; };
+LOGO.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAAC8CAYAAAA96+FJAABHFUlEQVR42u19e1hTV9b+SjBcEgQvxRugoLRCqVTBn1qxaK1U01HbMopKoCodMozfaPu1OpbR1nGqQ63acXTGyRcq3hK0yMRrixRrFYtVp3hBEawXULFeUBEkQYwkvz9gxc3hnJxzkhMIyHoenlY4OTln7/3utda7LlsEHcJLkpOT/Q7net8EACi+vKKe7hq9vsY9Q7vL78cjonteEpEcAOBeRd04AAAPD8mMa1cMYoPeKAke5F137YpBbO37+vaXmkrOVrlJZRJj3/5SU22tcRsAQHcftwMAANVGc/ab0cG9Jv52YKlM5vmI+vmQAQtd8P9HR1f1VqlU5R2zyF1EHUNgXfT6Gvc5ybs9ThwtrKYDxNdbCkIuXrjsdvvmkxepICCvM+iNEiGfSyqTGKlAIsHTs3en8z37Pa5JUsZfogPNsJFhXutVb9XSgapDOgBiMyjS1JqgwmPiYfcq6sZV3DQqqJ8VGgj2AgcAwKe3RNvdx+1A2AjTCSpgOsDSARDOMjNB2/XAQY/qGzdi6kmwfDx3T8y9irpxVM3Q2mCwBTSoabr7uB34fN1kHQkKX1+dy7ixtV6bt8Y9ABCZO1ZEB0AsPgWpKUhQkFqirQCCD2BQu1DBEjJgoUuHz/IMA2RmgrYraULRgaK9AMIesKAJtnmrorIDIO1ezKKZCRldyMlGn8JQY9qA7JIjnyB4kHfd+q2xbnt2FIrWLD9udkbA9O0vNUk9xe9RfZaZCdquzxpQnhmAUCf3s5S9U4vP3ZVX3DQqWkJTSGUSo0FvlHywaLho8tQwMwmQ4EHedRMmB7vbct/9e0oelZytcnPUM6NWWZcel/EsAqXTswKMzVsVlWhGGWpMG/Jyb4pb0oTC76quKzIDhDX7++SpYWYbAeLQZ756yTir4qZRET1UvTE4zHN2o/lV+awARdS+gdHAxpDAaAkzisnON+iNksT5nhAfPwOOHykTpczNNaNmoX7m4OkkAAAYOzjNKc0v0k9pz0BpdwBJTk72I5mXuYkZca0FDBQ0q5j+juYWggVBBACwcmmuqPeAu+ajOS51jjKlbAU8oVEe0Y19B0Ccyf0Gs+jFAR+LkZWam5gRd7Hkfkz9Y9dJjohij37D1zVq7PPw2ceHHrPdn/QxSKDs2VEoovMj6AA1JyGzLjCoq/uCJdHm40fKRLdvVQMAAJuj/8Gi4ZbvEHqTIDUK+ighAxa6/Fz4iaS9BB3bBUBIFb9sUebg84X6eUI737gYZiqHuQ9/NcCyKCdGbjLy+R46Jx1BRL225GyVG2qTOQmZdQAAEyYHu5PgYTPB6MCm0WwDITUSOvOSLq4f4Ty0F7OrTQOE1Bp6fY170vQd64UGBu7+TCYSH4AgxUtd3NTf02kNBAgmLu7LnyXhQhUz3Rtl5dJc0eHvbjwWYswQKGnbp86RyTwf+frqXH755Y02rU3EbVlriEBkLr68on5uYkbcvNm7KoUCR/Ag77oPFg0XHTydBOu3xrrZyjBRbXYqlXvwdBJIZRIjmb4yJyGzDk0vqqzfGuuWui5a1Le/1CTUOC5YEm3elz9L8sGi4SI6LcaX9aq4aVTMm72rcm5iRtyNGzH1Mpnno5kJ2q5tdZ21OZpXr69xHxr2mXHzVkVlmloT9MNe459LCmsEA0ajtnADAEGCeOh4Bw/yrmu8bxPZlz9LgtoBNcSEyfT3mpOQWbd+a6zb8FcD3NCvAACrZhJXM2ry1DAzPp9Gsw22/7vOaMuYGvRGScnZKpDKJBvjJm0c99okyd+SlIpLIQMWupy//LlJ1MZyvNqUBlmyxCyWyTwfodbIVBuKrl4yzLIHHFKZxJg43xOE0hZ0C0YqkxjRzEHtsGdHoQj/n9Qg1caCxlgJ/WLXaLZZ/s1WS4Jy/EgZL1M6Pn4G2KtVGmIohlmZakPR3MSMuOLLK+pFIDK3NW3SZgASMmChy9KlIpNeX+MeN2ljeklhzUZ7gfHBouGiffmzJEipOkLQX0BQXDh/2/K3NcuPm0ntAQDw6V/miKw9j5dbqGWxf/L5GFcuz4CMF1+ZPDXMvH5rrJu9QCkprNkYN2ljul5f4755q6KSLOLqAIhA4Ci+vKI+Ta0JstfXQP9iX/4siRDagu05Rr/h60oCYuCLPZtpBdKnsPZMjWaaGbXC8FcDzEjjWpNGU8xmsRcopG+ybFHm4OLLK+rbCkic2gchU9EbTCrbtYZUJjEqPwh3FdK/4CLZO8vMvQc02PQAQPvsaCqRrFSj7+I2YXIwAACMHF/vhpplTkJm3bUrBvG+/FkSLn6IUIJ+yp4dhSL1mpO8mC/0Ta5dkRyfm5gxe116XEZbSKnv5MzgUKlU5Q30bXCarY44AQxJSwKDlPRVNYDgoMvFMuiNkkbK10w1y/B3Ny8/JwIA85yETEv8opFiZgWH0BH4RqBIVi7NFWXvLOM1poTJNa6RDi5fssQsXrpUZHLGdeiUai7p+Q891d+tu9ujR48nRcf6+NlqUsnfCRD9a8tvxQNDezrkOffsKBQdO3KDM1CNRpPLkJGuEBY2CC6cv834WaPR5HLn9n1RafkJKCw8B6qVxXXHDt922aw6CXfv1HUir+P6rF27S0RCj0PkmAEwMzkCjudfriOfi02MRpOLsQ5Cv88p6bt48ae//PGDPhUzE7RdzxTqnC5e4nQaJGTAQpe0iytq0tSaoGMHwFhytmqWLX5GI2vkNJSiNYBjYiJFzE9ZJesmFJeERqYsYiGEWt/ClIDZnOUyzvpuX/GMZYsyX1m8PPY0+podAGEQTE/4LGXv1Ez1TQ1frUHxMxwuTHSsNWlkocxUTUS9rmcvL9rPk2kuxGdZn+NojksdG9AEMLuANAG5SMnZKrdrVyTHV32hipn/p+RvnC1FxWlSTXD3mJuYEWcLhcuWUuEI4bsY8DkDg7q6l16qfNSS2bkUv8ahYku1pFQmMQaHeVqcd2fRJOK2Cg6ylvqDRcNFLQ0OW6XkbJVb9s4yMx04pDKJka5tj6NNPEdok4OnkywJmFzeCZ13DCo6Cw0sbovgwAENHuRdd/B0Eggd/eYqXCPZXIFg0BsljlzITDlejpL1W2Pdggd51/GZUxIkvr46l2caIL6+OpvNqtYwqYTalZmAkLouWkTuvEKLvQFDW0HCJZhJB5IbN2JaXZO0mpOe2CfTJf1GjE3gaKxxaFVwNOY3mbmCmct1mITI9TPOUmHIxeQCAM5+CQESWJcel+Hrq3Mhm/m1eycdzapxr/ztjyLjc6ttKThq7Unn44gy0Lh2C99iLUc+C99n5kIFS2USY1R07/hPUiftaC12S9Ra4OCrOVqSheEifBgsrhoETUZqAqOQGsQZNhgcO64gaU12q0UBgrvAqi9Uv8nJFOu4DA46487GUtlC8SJY6Hpg9ezlZYlxkDXnVB/CXrPKWcaSL0jGx5paJU7SYk76kiVm8eatisplizIHt3Vw2LJ7k6xVY1CtyS5++1a1pUaECg68HoHlKCq4pZ13ZLjY3segN0qKf/bMSlNrgjZvVVQuWWJusXXbQk66WZSp+ViUptYEZaofHG/r4OAavaZOsh2sUpOaeHuoYGdy7NdvjXXjqokbI+5FaWpN6JcrPi4FMItaogN9iwAkpLGxwg97N/65rYMDwLYUE2s+B5cdRmiAOwPRQQUJm7ll0BslP+w1/rn48opEX9/hLjduQH2bBwg6VnGTNqbTHThDNwjODA6AhrwmEKAGY2LkJk4RZqEd6/17Sh61Nk1uK0iuXjLMipu0ETL2xiS2hNPeqSXA0chYcUpZd3ZwANgeQacKD1bO7IzP31rmVsVNo2JuYsaBlmC2HAaQxiKY+ga/g3t+lbODY8+OQpFQ6SBc6VxrfblsEYPeKMGSXWcDCZfYDgYSly3KPL94eexpR7Y8dQhAGlrzfGzU62vc583edZbrgnKmOAeTkE0X+Aid6cD1yAMqOLhQo2xy8epP5uGvBjjd+O7LnyXhUt9i0BslpRcf/6TX13QdGvbZTb2+xt0RDepoVa1CETdNoYibZvPOmLzbo/jyivqk6TvWc1XnfPJ1WlNKL1XaNAnkgiZb/nDVWnt2FIqQ9RJCgzX6UU4pXNfCtSsGcdL0HeuLL6+oHxr2GW/qOzk52Y9c73p9jbteX9Nk0xJRd/7Ql0I3GfS1UwAAoqPHKbTajK/5fCkGcrhEyqmHyrQFgPA9jsBRiYfkIrEVMK2ddmJNNJptkL6qhlVbkpF2W4OIPXr0eNJwL4+sstKr062aWAgOuVwuzs7O1iYnJ+dzt+/MohNHP67W62vc3x6dsZGLLcnUcdBZJ42vCO0/UIULE2ZNMznrxhQfPwOO5rA77eiP6PU1uqFhn1XzMbUUirhpubkHtOTax8/jf0V0aJLL5WK1Og38/f1MAAAxMTEBKpWqnM0ZolK6XI4FaCuFTuhU2xJB79tfaiJNTeyDReZeXbtiEFN77uLfsRs73T3sCfy1hfHn4rRj0+yMvbM5U7/Jycl+Op2uDADg+vVyMa710tIrnlYBEhDYb7tBXzvl+vVyMQBYQLJ82ZfBScr4S0wg4WNatQUVL4R5RQUJk0ZBc4L6mcb6etqjC4Q468PZEkDtGXc+plaaWhO0aPGHJQgOcp3fuXOnk1UnXSb1yCP/jTdYtPjDEmYNYhZ5yI7I9Poad67gaCtOuT3mFYryg3DX9Vtj3cjev3t2FIrmJGTWjR2c1gwcaDqsWX7cPDFyk5Hs+B4fPwPWb41125c/SyJEN/aWrjK0x2m3lrNl0BslhhrTBr2+xv3E0cLqhlQUbuB4CjKPLOr1nUiVo1KpygcPDr+Xm3vAsiDi42dYVJBOpytLTk4OoIJkZkJGF5VKVS55HBXHVbW3Fb+DwvrY9MyN7JM7slCNZpGZy/2wI2HJ2eNm9ZqTxr79paaR4+vdGu5TY/cYOltUnU4mTw0z799TwmreXrtiEH88d09M8eUVGTMTwrpu3gqVTOBITV0ppm56kSMjd5aVXgVaDYKLfszoNwsAAPLyDkJe3kHw9/czKZVJFrTpdLqyNLUmiATW5q2Kyq+3FIRw0R5tIRhIleNHykT22PolZ6vc1iw/bi45W+WG9+HToAGvbQSLW/qqGlqtYysL1hbmgMuaQYe9Ies37gHSuLhOSc2Rl3cQUlIWmHCdAwB07uyVj9cymlhxirfLAQCys7MtDmN2drYFJHK5XIzmFgDA4VzvmwAAu3cULuBiWik/CHeFNiab1ScED0DxadDgyGYObcXM4mqWY0IjgMiMa1OhiJtGOuRKZVKz9Q0AsHr1qruksqD3QWSej+hssezsbJO/v59JrU4DuVwu1ul0ZQpF3LTiyyvqZyZou3JJRCS7k7clETpFHDvMc/Uhggd51yXO93RYTMXW7IDWMLW4jEFjrlZc8eUV9SSVSwcO0v+go4dp1euE8fL5VC2CQoIkN/eA9tWxL083PnjMqa68rZlW6Ew7wlzAIwW4TPj6rbFu8fEzIDCoq7sj3vHwdzcet5X54GpqGWpMGxAccrlcjH40dU3jv3HNk+YVgJWSW4wuMklq6koxAEBKygJTT6+J4l5dRljlq9tStJwUW0tr6fwIpqwB8px0uvMHydOp6IqshKB829L8sM2JVCYx3npwTHK7ep+JXKfW7kmld1kBQo0yMoEkPn6GhUN+ue+yerqJamsBQerCFQoc5DhgJi85LrZGtoUAcVubI2uxkYv3lpqom7i1e1lLqWLM5lWr1bsDA/tbfchGFkD81LZbDD29JgJVm8xUDnMHJ+q0zlWEOpyGCg6NZhus3zrDAhQ8ex07sHMBptBBvrbCZqEkzvdswuSRWgPBkZd3kNZNoFvrWm0G7d8aBmXJEjHV/pLJPB/5+HSbx3ZzdN4nRs8VpaauFN+u3me69eCYpRA/eJB3nbPVHbS0cy5/J0BEgqPxtCnLd3z28aHHYwen4SE5MHlqmFkqkxiDB3nXMf0IeRR0W2OzABric7jGSHDI5XJxaupKcUrKAhMXcERHj1OQzjlnHwSgeXYvm1BVWk+vieKfi1RtERuC+R7ydwJEC5ZEs24QeKxZ3/5SE5cER9IfEcIHaYtm1p4dhaK//mW9mdQaXEwqkrmiZu/SapDk5GQ/hSJuGhU9MpnnI/TuuQgGXlJTV4rlcrn4dvU+kz0pGu1Bexz+7sZjav3HnITMOvzB8Zk8NcyMgUDSESevJa/HZyw5W+UmVIykrbQyRamuKzKTWgODf1w/T8dcIRYsPgiZ1QgAMH78hA05Oft/jxerVKpyhSJOweawkyZXdnY2kKouL++gWK1OazMD3+hAC7JYMKeKml7zlLK9a2kWR+enURdtYFBAk+uEqC6k7sptgc3CeIYtwEDTipqhPn78hP/T6XTvAQD06NFDGxMTE9ApInyUu06nA7lcLm5c4O8FBPbzLjpXNEsm8ywHANBqM74OCOz3DldTiwoUgIb4CbJez4r2YBI+x8PRZDybqQAUmphw5twsjWYbpKQsaOJr8L3Hiy8Gb0TWCkGyPyd71alTJ6cQODBFhI9yF2NqSYM3nwapqSvFBn3tlMDA/jWk6ikrvTqdLsLOBSgADQVYKSkLTEqlc6e4c22kYM8OPTQ0GcYOToOxg9NYC540mm2Wklv8/7a8OdirNRAcfHwNqt/xzTffziVNKp1OV2bQ107BOiiUOMXb5SIAgNDQ4DkVFffXYkIiohQAwMen27yiopL1tjjtzRzWhipFi0PljNrE1poPIRxg/G7y2qGhyeAliWjRMXA2Z51cj0IIBgXJWB+5Hv39/UzowIsAnqYBUxGEdp5U5pE1Ybx8vkqlKn8vVlN74uRBN2QO7BVnAopQzBXboiO1AHZpPJrjYvlurgvUlnPKue2yzlFIJSQwenpNFA8LH1u3ITPeI02tCVqeumgZndbANY8FgpaJolYS4gPGx8+wfGjIkPANpnsxswx6owSjlUKIXC4XR0WNhdYGiqO0B7noqccl40IkS0uZwIRCFl0JEemnk9ZMPdFotgHXIB9Xeb77ErFUJjGKu+s2nTp18j1ccwDQZN1RKwstkfTIkZE7c3MPTFEqkwARhezA9evlYo1mmzglZcF7ACehp9dEeLnvsnoycmmPoEOfkrKg1UAjJHPFh+FC1oipHxQDABy+eFvCWXcEEOg0R68uI4y3HhwTX7y2zwWuwXtkvAT/H7UHMlwYWRc/ddDVu3GxIteOWbv+/n6mvLyDlnqQ29X7TGeuLXbp1WWEsafXREFSFDDjEn+iosY2Kdiii6cIFWPZs6NQ1JLOKaa7Uw8gdaYy5JKzVW6N1LNdAKDOkUazDZTKJPD39zOh+YSMFP6gEy4EOLwkEXDm2mIXjJeQxVJyudxi3ms02yxARSwAUCLppNOCD0l2N0GfAbVLdna2qafXRLEQWsSaL4I7TdnVq6KAfv3MCB5y57FH4zjS92AzV8jSZpJF4+KDONLEstVZp9MKODcICC5+J7nmbAUHAAACA80p0qfBHEKSbaUmLjZrHBcY2L+Gzj8gb0x+oTbjK9G5sxcEaR5MslzUBa9UJgECA1+IdLDIQhiq49Wai4wEyJ4dhaIL529D6aXKZidFyd8JEOHvyfSUlUtzRQNf7AnVdUVmL7dQ0YXzt2Hgiz0B7+foZ+faeYZp/Mnfk5srzi0VULbGNqz5tuSGTm7I1N9JZR5ZjfG/R7QAIXlhex/AkUIGc+h2I5wUJq2CYIuPn2HTQZhCskXoi1B37pHj691IZovrZwUf63cCRL0H3DXn5R0E6qZDLm66TYlkocjNryXWhy3rEvu/NXH26C7EuAhfE6mlgUI3KOREUicIQeHv72fCCeNS7CUkIJi+h2zgwKVda0sAl8yQJdM6qDsxqeVJ4qW11gDVlOIiaFpRW1vRahCVSlWOtK89C9XaIJELFu1w0nziokHYJgPVtTUzkfSlWgoowYO86wKDurqjqcRmAjKZZY4CBwkMurkkgWLNJOI6T9TrSa3PJRZi7+ZsLavXKkthK0iog0P30LjzYKyFiZ2ie2lrPgZTUT6506FpgIKL4GS+i8Oi1ni6rb30LKa5OwosF+8tbQKMpyxnGq3pxLTpcZkXEhAo5GepcThHmffYbpQVIKg9yAa+VKe9JVQkaRaRA0gOBOmHMA0Y9Rqme+ICwIl/vvsSsZDAcFTahtDs28V7Sy0+HZpLVKBYc3QxyEx12KnzRL0v07VcfFB735nqd7CaWHgRQEOm48wEbdeTP31/T6jUEqGccz7UMZNWoWo6EiRM9fXOAAyhgSKVSYxnri12Qc3MxZfAa/mkgwi5sO2Vnl4TxeGvvN5981ZFJV1LXUvzaox9SGUeWZEjI3dSi9exGbVQUfPWABXXCSG72mOQyR5al6vJBNCQk4Ult70H3DV7uYVaym9bgq6+eG+piS4uINTYOpOgv4kd4cm/KRRx0/KP5r9j0NdO8fHpNk9Ebe+DQFGr1btlMs9HE0b+M+thpSgGAKDaWACtDRLSd7HV/iTvQf089k/iAxA+R1eTpbJcd33sncXFh+F6WizVKQ+PrGcMCpMsFZ+xpuY7CZ2Vays4cF77BUk3ZeydnajX17grlcq36IoCLQCh6zrn49NtXh+PD/9OUo/OABI6toPqfLNNJNrPVFOCL0C4goPqXFcbC3i9Mz4LF2efj8nFBBCqT8eFiaJz0vnMSUuCA6lsTF6kbp44DiJqFi/TC+HNqRy5s5hR1N9xoZqtUcN8NIg1cDABgzp2bJQopk5wBQpXTULSuuRBMraOva3j3hImFf771oNjEnIO6ICNNSEi6kk7qEqZ2CPyCw16oyRo2Aloi3YoG0C4MlnWwEHu5NT4Ah37RtLQdKwdXbyG6/dbE7QKhEzzcBZg4KZOBUXIiy+4BPQbYMnrIwFCHholAmgoVscceeS79+woFO3LXWem8tR0iWjOwkwISTNzYbH4Lk5ciHxyxVDQ/KXTbPaChGSx2tNcUt+F3IxI05EuMImVtCKktDDewSW3ifoF7Q0cXLUHUyIf5neheYNmVXjk05xOWwBCml/k7ojfxVQFyLUQDOMgzmYi2TOnA4L6inz7BJmpGzyTv4QaFIOHIuSASVOLDiR0DAQTYNoiaHDHOZnvAlxSTpioXGryI0lq2KI5mDQJQEOVHFUT0IGEaytTdNbb8vyR65GJ5WRLrCQPrRUBNOl/1aSIHQCAzGXiQqsyFbs4+4CTAGFzzplMGiZzBsuThQAI6UTTaTq+z0Y1AcMj6+F531jR2q9m17clULBtznTlE5hLhuscoHnSYrNIOvojVJDAMyJczCs604qONbKmPcjSZi5ag66xAB11aY1y5mJqCdlrwNl9Eqo5SXbwQWm2GHJy9v8+OnqcAoGBrUTbOzC4viPdgTdkyS5pXpFULlX1Y9NvZKyUyqQmP6TGoO6I5L3I78DvLjlb5UbX7IHrCVXtcb4b+x40cdjJBtfR0eMUVHDQAgSgoZMigiQ7O9vU3jUIWZvMJnQ7M92hNqQ2un69XEylcKnNz6KixlomEQFABu3Iz8bHz7AsYiaNR/dMfHLDhKoLd2bAoAaeNnHNu1ptxtchAxa6sAIksU+mCwBAN7eJLi/3XVYvVFMGZx8sjWYbyOVycbWxgPE8bmvag+4z1Gg5BmHRZMJFrlQmNWFTyGza1NSVlqTAvLyDzWrY6Z5XKpMY+WoRqUxirDYWWDaL9hTbYhIygEht3I7S7ACd9F9j6wEA7lXUjTPojRIvSQR4dY8Qt1fbFAXbG/n7+5m8JBG0DNaEycHNDgLCQ3assV5Y4ktqYo1mmzg+fgbEx88Q03VniYoaC2p1WrNOl9nZ2QAATdJkqN+N/6Zr3TNhcrB7ydnmjJZBb5Tcrt5nUqv5R9PbKjAMeqPYoDdKiovLuh34SVXOSYPQXcQ3b6it+yK4GVB3Ziqta+38dDIoSAUHAhLbGZEag6pRsB8t9bNoBt2u3mdimh86LUJ9B3xHjIE8C3OMhzzhv3s81zuc6dpmGuSV2ggoBoD79/ReWC5CPaAEpS3HPazt9JaEReNECcZEGk2TJmBoPD/djWkSSJMpPn6GmPQp0N+gNswjHPhmPgFdYRJ+l1f3CEZfhKpFggd5Wxg3Mg8Le1a1J9aKjiBJSVlgIsfsxrXbzwEADBsZ5lV8GSqtAsR18sHe+tU1d38bvamJSrpdvc9E7WxBcWzFVHubBFFbABAuWACwtNa/Xb3PpafXRAgM+i3jOYsktWvROvfABaBpxJzavJuuRp6uwIvMPKYWeCGQqF1O8Jnozh4cOb7e7cTJArh4bZ8LAJhSU1eKnSEV3RYA0LUPZdsEcU3j74IG+kV/e7TGXSbzrDSDWSQCkZkBIGaRSiUqX716lbuvX5fflFRWAUBjBqkXiLOz95mUyiTaZr/UqHpb90ew2x/+e+1X++DijabBppKzVW7VxgKofgBPI+cPgDHLuXF8aBtIkGPaWNVnARPRIpNxjEmTAZ8DAAD0EZb2pnQ9qNgqLtuK0PUxoGaEWMtnQxGx/LthTPU17m+PzqiiOn9Mga+2tvvYsluRadzWkvrkcrn4evkV0bmzF+rpIud0DjC1MAknm25Myebi5KRTNRTdc5EbWXvKo2PyJekKvejAIZVJjLsOx3nTNW7gBRAUktFiah/fnoFC9cHo1Dz6M0y/p+7kpPlK7SJJCrW7CNl0gsnEZepi2F7nhyswSIB8998bMpFo6RNOALl6TSf7Xczd+9aoy+BB3nVPPHLd2NKJnwU+nW3SqIuXrPsOefEFl+9yDtL6NtRA4azZM0UjXxllfhY2I3s2LbpiM2sJqFKZxPjnlUrZa6/BE1YWCwCgr/+ZOgBf1odrDGCJCY4endwOYWBQyC7iAADF53+pB4aMBipDGBU1Vjzylab3ftbH29qaS01dKfZyCxWtWX7cbG2zN+iNEjpwMAKEj5DsSof2aC5cGh6QvYIBAI7+dFS0aeNGMx15kJKywKKV4uNnNKOIn0UNQt2IbFl7o5dAp8NLOWqQa9dfdgO4yxnBdDZwIzsi7gBJ8w7n1A4fjX+zOJWbNm40W+t/i3ESqsP+rArT2qMekMMkUpnEeObfPR4B3GmGB9oPP9f9jXq+CG4vASahBZ1lPBgIaVU6B9yalsbxVavTLAcZdYw585gjY4f9xdiktPSKJy8Tq29/qankbBUn9Pr7+1l2NZJJQN6fTfvQAY7p721NMMeL6pdQAYJahOm9qb4MtYdVWzeRmObcWlYxOSZ0DJ1anQZ7dhSyPkPf/lLGcaSgyywCEJn1+hr3ebN3VVqrQKMW5TDZ2EyHJXLROu3FPGMyhaiTitdRm7cxRYnbS1IhW5CZWjdO+r5sjcq5VFIGD/KuW7vx7a4NcZAGDDAABCDp+Q8915z+6xNrcRA6gFhD8rMumFZCBxRykdMBhPoZ9F3aW4seIQBGt5HwBQhLqgnAt4ZRtWkyz/oJI/+5F/QNLUdpHXmaHB9Ee+ODiqmI56o+2xu4MHUFx4Paf4nOZyEBRDqa8fEzIC/vYLsBB9WkpuvoyHT0gVAnIN8of/CNTOb5KLFPpovoV1G9VR/Ey/043ACAbt1l1Q8rDYw35dr5HF+CZLXYDuyMihorbo9aCM1QJmqWyeQkwZCXd7BdMldRUWMhKmqsmFo4hmQSmfNnb+MLqnTrLqsGAPjJo4C7k+4oZoHuIBu+QLDnqK3WEi7vKNQ1zmZeWkuIxN9hsA83D2r/ZTIojcVmXITJ0kGRyiTGO3dvnmT6O+OHu/u4HWAqPUXhc4429VxqcufA87GRCsVMWvx/HDD8He4geXkH233tdFsXLBNGepo8Bx3PLcff4fympq4UUxkq1CjYbIHr93OxdEJCAu4z/a2ZBqErGmGS27eqee362dnZJqUyyWI/Mu0CWINNql42tqxDnFdzkkVhqP3JOaWuBdIspyN/HLUpciqYcpSQNQ50VXRUIJHqtkPaH2AIy4J27q1ttFx9kMZyY7vOhGwGEA/ZERkAVFYbzaxZcHTlnGwgIdmtNamHmx0D0JLn03VIy7NV1ubN2iGftjBW1XVFnMARNsJ0AtKfrn1OGmS96q3at0dnOGzAvNxCRV6SGnOvviPqmWxFaoGWM5490SHcNUdjCyMxtU6jybqQRPA6ws6aHM1xadZHgE7iFG+XJyk5ahA8zFAm83wUPVRtF0PAJGTwxpoTheCgnp4ql8vFnWqj6/Ye+lBijeXqAFPLaAa2saY0yROTjNTt6n3Nuuk3NtoWBCR8hHqQJwBDwVRin0yX9F9j6+MmbUy/eskwy9pNmY4A4AIOq+qxUXswpWlQi4moQaaOKHPLChnMJNsSUdNomuzwP/0omhY7vZ6p2i9xvqddwUBqp306wXMKcc1T/067+HJEDYqFC9VL172PDRxs96QCgRpd1mi2AUn5IlWMk0OCAynkjiUsPCCooCB7OWNHSKRt6eZwWux0q1nj6atqYE5CZp2tz8gGDnId0gUJGX2QN6U/eqQB1HB5iAvnb/MGBxduGjup3K7ehwPfrCCLSyoCEy3cng6KaQkTiq55HcYxSAqWZKkw6o/+B13aEVuteMnZKrc5CZm8z5znymB193E7AAAwOrqqd/FlKOcEkD5xqw2w9EsIG2E6UcKSLVx6qfIRmyPEFxx0IOFSzsvUQILULu2p1U1LOddlV6+64BhiEwgcTyzcaiwCa7LpkONLZ/KyHZRKdqsfOziNl/POlcFiY2utmkds3U0Q5UxHf5F2IF9wMPklpPNO1QjUwBKd/UptUTRkSPiGXr16JmVnZ5uio8cpxox+s+DQ4W8jAAA6d/bKf/iwOvLu3ftjy8vLzugNtVEGfe0U8n4xMTEB1O/Ak7paWqKjxynwmenO/Ebx8ek2j+5dSG3BdJ4GF5+AqQ0UyVhxPUG42Sb4ToBowZJo1sXP9WzG382LGDzt3Yhi3gDBE3a4OOqp66JFw18NYD2OTGi5eG8p5+Q1ukmLjh6nuHv3/thTp06+FxMTExDUf/DLl66cPlN9Y/hfK24aFQAAwWGes9elx1n4bjw2GwBg4Eu94wcHLBSXFNZsBADw6S3RZuydnUgeZ9cSIpV5ZBWdK5pF9nWiewbqdXTXkIwhE+HBFSiopbme+chV2M6k5woQdNBDBix0Kb68gtYfYnzww7neN7k66hev/tSsqfPYwWngSHBwmRz88ff3M9GBQ6vN+Pq557odvHPnTqeHD6sjv1j16e79OdmrXnt9SA6q+JLCmo1zEzPi8HNF54pmSWUeWSQ48D0lXVw/wo1l+bIvg1vqXSeMl8+XyTwfJScn+4WGBs9BylIq88iiuw7BERE+yp2OFDn601ERNoWIj5/RjIFqNK1MOL503enpfifMZtDgl4wdnGb1O7hoDy7fx6hBZiZou27eqqj8LGXv1LzcmxquxVNcDowUSshAIh/BQxrRjAx9KXQTaW7ExMQEoBZB89Cnt0Tb3cftgNE1L8+3S3zf4qKLv6P+HbUHLlDyzEdHmlVabcbX5LvIpB55H7y/+LtFiz8sIU1JnS7rfRIgtbW116zFLrh0hWQTNj/DEdqE66GlfUJkvTZvVVTiWufpgzSUHqapNUGZakMRmzY4eDqpRcHBxS8h7V4vSQRcvLfUJJV5ZI0e9bc/PDF98waaV+S1eJ/S0iueSdN3rEcQ4KBSxwHB4eV7/FMEBvl30iRzBMM0KjL6hSRl/CX8HR0ofXy6zXv11TF7AADELxuM6/+w5XaaWhNEAohuDJgYwee7LxFzGXdHAoM6H6RvotFsg/RVNayfjVVKQ5OU8Zf0+hp3urajrE462mZc/BBsqe/MjAzTIUDkmeN4HABqku6u00edOPrLZsb3DvOcfb9uX31u7gGtVOaRtShl+eKCkz8+IoHiCJ8kJiYmYPXqVXepJtOafyx7o6Li/lr0ORalLF+MpANqGiYgAQC83HdZPZ7tzrT4hfYphASM8oNw1/17Sh5x8T/Stk+dMzTsMyOT/wEA4GLtJj7dRonvVuabx4yaJquqrJ9kNJoYr797p64TOLl0l44RSSSdRZ5uL1h++njOELm59AEAAKPR5FJnugn6ul/MAADFxcUflJTuMw2L8pzY87nnTz/X03U3/oQOlqZ26nr08yrDWT9caEbjkxcPHsz5o5+f738jIyOr7t6rULu6um2/eq3M73/f/zTl1JljEqPxyYv2OuSTJk1+c39O9qqic+czqqofhKz84l+nf/nl3PC0r/79g8FQK8dr//f9T1M+W/Zxvrd3lwcGQ23gw4fVu9b8/f8yfH17SL/55psjtNR6p1c7AQC4ufRhHC9nnV+j0eRy7MgN1rUolUmMfftL//7W1IhTuMaZrrW6E4yOruoNANCzd6fz7YXX95JENPlhE4O+dopOpyu7a/zHyV9u/QPu1+2rX5cel7F4eexpAAC6XXjM6DcLdDpdmUFfOyU6epwicmTkzi9Wfbo7cmTkTnufP3Jk5E6dTlcWOTJy55MnxhkGfe2URYs/LBkz+s1moeCzRT/tjYmJCcjJ2f/7nJz9vwcAWJ66aJk1f4HqvOI49eoywuhok6llTfOG+MewkWFeNjnpaGKNEhs91pz+65N5s3dVUpMT2eIjXB6UC9PFJzWFD3OG9yXP1ujVZYSR/Ddpbu3PyV4lk3rkDQ3/ZJvrsQJj2sUva6yZT0OGhG/AhRkaGjxn6NDh/7xyteSLC+dL59syqRizefLEOAPNJTSVpDKPLKqvQzrw5DM8eWKckZt7QMt2QKs1QAgxv621RgAAmI474AUQUr7eUhBSfd8lDP9dWHje5eRPlRpG6vHtvtN69fSnnYCqx8dqvF1HeB47em4TF7+lX5B0E1KvbJKpObGFK0j6BUk3hb9a9x/94yuWXUTm2r/a23WEJ/msX6z6dDeaNxPGy+erVKpykq1a9YXqN+R9T53J8xzyclSNdxfPC0nK+EtI/a76QvUb7y6eF6oe1Ay0BSD42fl/Sv4Gf8fkbAMA3LnTvJWmXl/jnqHd5YfPQL7ror+9oeXibCMxwTYnP3x/ajxJcjRzkuOHvcv02Vu3r5t69fQXC71Gfi2vGHHhQrk3W/yDFSDIvuDORMepnz086BrdiweHec4+XbbCdL30wdt095ZJPfI+Xaj94au1Bae5JJTFKqWh1kwDlFdG9fqL6EHyn9gIBZLmO/zjn/9t7bqy0qvTe/To0aSp8fJlXwYjc6RQxE3LP5r/DtPnZVKPPPKA+oDAftvtNQ/IeUHNxqQ90tSaoOWpi5bh36nzaKFwA7vsCn3hlR8jwke5JynjL81M0HbNzvnfCiaAcBm7Re/v3km3YeEaOXj8r130htoopnGfmaDt+mux/paQa2TCePn810YmdT7wmfZ62i+r9SASWWVdO3GZDPK/hNCaCT69JdqwEaYTX++7WcI4cCnLF3+1tqCI605/6PC3EVyo0p9+vAWTXnPbw7RrNTchRHJbKNhFiz8sSVNrLCDhcI/1BJslCOWL3/nwYXUk3d87d/bKpxs7pme9Xgpw5KBqO4AKAAA2b1VUBgT2ywKAWFvH7l7F4wy6xezTW6I1uublVVTcL7NmsXDZQHHNZe1aN4zLXBYXX3ikUkU0bKCiL1nHWVC6TiqTGNO2T53DpPIBAF4fH/jSD3uNf+Z6v+Awz9nXblwewnXRhI0wnWgJJ8/aOzIJXUGOowS/6+7d+2O5jl2aWhOk19e4AzQEig362im2BGKtaSoAgLTtU+dYo73/+7PKe6Pqp8+4+h7dfdwOXCi+NZnLcxUXF8XjO3IRsZDgCA7znD1s2NBERidzaOC7z0neD+e6wwM01AvzcWoPHf42wqe3RNsSizA5OdnPmnlFXoc+S0uJQhE3Ta+vcScDoWyyZfvKoei4NtZnA5sjz6bhqGvkd/MiBoe+FLqJ6XPR0eMUKf9Tta7+seskrt8VNsJ0go8loFQq38J5aRGAUNTmWqYdJXH6+lNk7hIXKTj54yM+z5J/NP+d114fksOX1bBlh3z4sDqSy8Q8fFgdWVpa9klLguTu3ftjcSFwleulD97G3ZXJdLN3A/3npsSXmcZMKvPICvafc53PBurTW6LFQCifNcJVowumQdjUZtG5ollcbUpyQI8cOTSZ984lPVcg5ORGR49T0L0PnzyrC78Ue9MlEDpKysvLznDRbtSxy9Du8gsNDZ6D7yZU7MPF9fFe35cKz1w4d1NjbY3kHTj/A5810t3H7YAt75mm1gRxubaTEDsDm9qMiYkJSJq+Yz3f7N5RYwae+nrf/bN8nylr17phLq4JVptv27LjkICx9r7NTMuXo2o6d/aaDwB+Dx9W7wSAJgHDMaPfLMj6j2aBNXPozp07nVADrV696i6pHeh25FdfHbNHp9Ot5fuuhw5/G4HMkq3mFUp3H1cPXCP/yY2LDwzsz5ggtXzZl8G2rJEGQqh2C/X3bD22GrXOJYcBpP576QOpd8Mun759zhAmtenj022e5HFUVMXNGgXf7/jhaNpDut+zlcteKL41OTlu2Jbvc05PEiLlfsJ4+fz9OdkWerVzZ698g76Ws/b4w//Ef69U5r3FpHFOnz45z88vgNWPITR0AJv2YjKR2MYu/2j+O5EjI3cWHnePtVd73Kt4XNtAzAyeam1DGTI08N3CY+JhWIPDVayZV3h4k7X3BICvHWpi+fSWaH1fKjxz6ufSLUw2ZUXF/bV8/Q40r/bnZK+i+ztxehWjCu3e7xfB0mNUKlV50bmiWQgWvomHSqXyLXvT3kl7me37o6PHKZjMDi5jN2b0mwW9uoywy4dDU9Knt0R75trcX6z5HaPCVpfZskasmVdc3pOLmWUzQFxeN3RJ2z51zpefp59humZRyvLFmB3K9/6jxgw8Zc0BZqtoW/OPZW/49JZohXLWZTLPR6WlVzz5+kStIWNGv1lgz9hl7Vo3zN6xM+hrpwQOdLn42iTJ377PKT0nlN/Bhb3CcmG290TtY408Eduzo7HZ4XwZKFL25KwOo/v9H+f+3oU6EHSiN9RGcU1P4SoffTT/OSpLR+fAt6ZIZR5ZTONOjpe1sbtQfGtyyEvP2X0A+7R3I4rZotsZ2l02MXs+vSXaLdtXDmUyr7icPMCFzbIZIApF3DQ2inN/TvaqqHEvvsZnJ0Lzikl1LvzTJ+Y5CZl1e3YUithUqFBsVkBgv+1pak0QnclHl0XbmhI5MnInk2mKXfMbDymyOna9AqtO2fssXNbImn8seyM4zHM23zUS8tJz2UypTPHxM2Cz+sQjto2Ai5llM0C42NQGfe2UGw801/gG7tgCP9euGMT795Q84moq2DvJA18IqaJLd4mOHqcgq/mYpHNnr3x76V00A6Qyj6yYmJiAmJiYAB+fbvPovsva2GFzNy7mh71jx2WNVFTcX+v7UuEZvvfuFVh1ypp5VXK2yo1tEyXNLIc46Vxkf072qremhq3ks0OwmQgGvVHCpS/wheJbk8PCQnfZY0s31HZkvU832VptxtcKRdw0LuZoWenV6faaY0OGhG8oK706XaVSlatUqvKiopL1d+7c6YTgw+Alm3nFpR9Y/tH8d+wdO87m+rptnwwb+cJMrt/Fgb1qWHscNlG2GIrDAWLQ107Zk7M6jMtuxBYcjIoaC3t2FIqqjQVw68ExyZ4dhSI2FQrddZftef44xdvldOkz0dHjFFzAAdCQYp6m1gRptRlf0+36XEWny3qf1GwBgf22BwT2274oZfliqcwjSyb1yDt9+mR3prEjz0DUaLaxmh9CMoFsa6RzwP6z1s4r58NezUnIrKs2FgA2c+BqZtHlaLVIbXFu7gEtVy0yaszAU0zpKvHxM2Dy1DDzv1Qfiz79yxzR5KlhZraeWFs37Bptr6lAfR7csblSt0ql8i1thnohAMAH7y/+zlZSBPOkAgL7bc/NPaA16GunYEVh5MjInR+8v/g7a2OnVqdZ+ubivx1tovLRIs8//8I0LmuEzQRfvzXW7eciFa1WsWZm0RVQCVJHPmRI+Aa2pLgGLRKtrbgJVvNsmNirhoVmaWbW2L2iyNKfl4XN2pl584SCL5UolXlk0eUzFZ0rmmUtKkwn58+XzA4NDT6VpIxf36NHD5v9kMauiZbajsYg5qrc3APazp29AjiMnUWDsI1dQ8A1NKPi5mmFvQFXuopH6k5edi99vovrS1YzINhyr8j3ZHs/iplFGzQUINXEIysnZ//ve/To8R6bFlm36qNBX60tUFgzrw4epzcR0HZm689LN/AFJar5AOGU37NP+OioMbHZ2dnNHHM0ubg63libUVFxf61eX5MeGNjftl1WpSrv0aOHFqAhQ6GoqGS9SqUCvb5mVoZ21+LlqYtWCT120F33GUB/u9bIwJd6xx85eGY7tfCMzl9dsTTpk6/WFkxiqkLs7uN2YO8PzH6Dre+ZptYE0REudptYGGGm61FLlb+uULxmjdKzZl7ZIw8fVkdSA19cVDnVmZXKPLLGjH6zgO8zqlSq8iFDwjcA2M77kzayVOaRhVWKycnJfjKZ56MkZfwlR/TfQhPVVmddKvPI+s0raYa4SRvThwwNfJdtoe7KnWN2cX2811bzylZh0kp2ASQmJiYAW16uXr3qLtuOWlFxf+3n6ybrmP7OlHtlr+QfzX9H0sX1o1sPjkmqjQWATv79un31fO6zKGX5Yi5lnXRSXl52BsB6VxE28wrNPZnUI48EH0kDCy16Q20U3djx2UC/zzm94+olw6zE6etZYyvf55Sem538yid0gHRxfbw3a9e6YY5aI4ICJDp6nIJsXiCTeT7i0tYmZurrMVQtYmtqOx8V6iE7Irtdvc+EPw/rv8/kE+QbMiR8A9fSX7qdH7WOrbufSqUqR1KAro6bKTgoxNiFDDnb52H995nk+HHZXKYsneCLGbpSmcS4e0fhAjYt8tRfba7xnw/upuNaOWjLe9KxWTb7INhOhgzTq9Xq3Wz29amfS7dMWWYKpp470pC2fL+ESU2TuyYXponGSX6vtPSKJ8lWJCnjgavDrNNlvc/XMSdZLKEnMyCw3/bIkZE7O3f2yl+9etXdwMD+Uxw1dls37BpdVnp1OgDAqi9Uv8EuL2ym1ZC6D8dk3jyhQJ+v4iYofjdv/cq5P8tZWU86f5UptV2o98QUeJLNErQbokzm+UihiFOw0Z9r/rHsjbHDP51NZnBaYyYmjJfP9++q+F3RuUt9mzmAA/2q+vj5HDv03y+sfm9JyflPPvpo/oYjRw5N1utr0pVK5VudO3vl63Q6Tqak0ItcCJAgmxXUf/Bb1sbOmmYuKipZr1DE3bM2dkguDBs2NPGLVZ+uBWgIoObmHrD6fHRNG3bvKFwQHT2OdY2kb58zxKd3soX1ZGOvqMc/0Mn48RNetsa20rFZgsdB1Go16+5SUXF/LTZXsLQJOs3MXkWEj3I/lFuccvWSYRb157tvfnk/U3NiC1dzqaLi/trAwP41XKvQ+MY8Wlp8fLrN++e/UxPY3pnpp0ePHk+QZbMmGdpdfrgDx8TEBMQp3mYtV8WCKZI5rLhpVEwe/1Eh22dP/Vy65a2pYSuf3os5OMiVTXzuuW4HuZpZ6DoIChBkVLikVCxPXbTs9fGDp7KxV1KZR1bhMfEwOspPKpMY+wVJN/UJkfXiMmFHjhyajGybQV87hUvdtS31Hy0pH7y/+DtrxWps7yiXy8UR4aPc2RbZocPfRsTExASUll7x5FLLLZV5ZGHBFJ0W4eKL/HNT4svoi1hjryJHRu7k0iWRy+a95h/L3iBdB0EBgjfl8iAGfe2Us2VrPHx6S7TWgoORIyN3UotpsElErFIamrF3duLmrYpKmczzEVsaR0XF/bUqlar8zp07nZYv+zKYi9ZpyVY9QtKTAA1lt2yaLzs723To8LcRbPZ7bu4BLUbzuTBmBn3tlO4+rh59+0tNpLONWoQLo3Xh3E2NpIvrR2zmFRcNiC4AF6aVdNJtAoi1L+GjRfKP5r+TsXd2IpN5hXEH8nyOfkHSTQiMJGX8pZABC11wwvAMDDYthztFwckfH9mbZct1crjSwHzNK2tjx/U+ubkHtHzGjqsGSfpg8NdvTAwJDw7znN0vSLoJtT5qES55aT+f/GxGxt7ZidbMq9WrV93l+q5cmFYyVtUirexnJmi7jooIfaPq8bFmLJB/r/935fqt/9JSX/69/t+V3TsKF1TcNCp8eku0ki6uH+FJQCEDFrqMjq7qzXeHT1NrgrBBAnnoJUBDc4U//E/8901613bxvGCtSdzyZV8GM/XaxR69ud/vmmzNOZTKPLL++IeUrXg903VU9ig6epyC7nqu30slIlavXnUX3/3UmTxPBH9E+Cj3qgc1A727eF5oZP8u2bIO9Poa94/n7om5V1E3zsNDMmPEyJdm3bp93XTn9kNJv+DqKqbPUdeIt+sIT5CeK7DlOawdlkMnDgUIPszcxIw4Q41pA5cUdVL69peaamuN26jA+LnwEwmflySfB6laXFy53++a3KtXzySq2QHtSNg6fJDX3bp1Oy369bf3nDqT54mbBgnO0tIrnnzGPjk52a9W/6r+xNHCarJRtF5f4/7vf2leP3nE7bceHpIZfNZG3/5Sk9RT/N669LiMJUvM4qVLRQ6bL4drED6nVFGdcPKEWXuAQQp5JBp5PACfo9K4LjhnktTUlWK6o5mZBM80JBtOSGUeWWWlV6djt3pbNqg5ybs9Dhz0qL5xI8YCFr5rA0+ntfU5nAogAGbRzISMLutVb9UmTd+xnmvndZ/eEm3a9qlzZDLPR9YOWeQr1G7naMsPHhx+j7TJ2cDB1j7HmbQHakU2kKSmrmx2mi0VMPZuUAAAuOvr9TXu82bvquRzdF/wIO+6tRvf7jonebfH5q1xDwBE5jYOkKdaJE2tCTp2AM5yHZDgQd51T9xEfTZvVVT6+upcyF3HXsFjC/ikfiAosI7CllNfW0OuXy8XY3p7VNRY4KNJyDNRhHgW3PX1+hp3rhsmuR5GjINB5Jkrjh67FjtvDneNZYsyBx/OeXCcT3tJPK5XaJCgRjl0+NuI06dPdidznJDtQG1CgkOj2cZrkTkLSACenl+Ozz9kSPiG557rdpB8f5nUI2/w4PB7Y0a/WWCrQ85E1mzeqqhEcPDpwUuuA0f7Ha0CEHKAuJy9zuSPCOWLsO1AoaHBcyoq7q/FY5DZwOFMfgnTs2AlIYIETUT0LWwdKz5zf/WaTpbyP1XrbPVHhTS3nQ4gAACoBeYmZsTx6aaHfknG3tmJ5IALofIBmqaNY+ScrGUmwUGCxhn9EXw+BDL5fFSQkNokJiYmgJo+L4QZk9gn0yX919j6r7cUhHy3r/gkH5+DBAfepyXHssXPu75xI6Z+ZoK267r0uIyo6N7xfA5yrLhpVMRN2piu19e4o8ll7/OQCyBNrQnS6XRlcrlcfP16uTgqaiyo1WlNarevXy8Xq9VpFnCg6cIXHNYaCdhzLfks+GwpKQtManWa5d8ADTXq+HP9erlYLpeLdTpdGeYirV696q4Q4AgZsNAl/dfY+mWLMgd/tbbgtK3gmJmg7drS4GgVgAA0HO8VMmChyyepk3bwaRpm0BslVy8ZZs2bvasyTa0JunEjpj5kwEIXALNIKJDgAtNotjXrHYU7r7+/n4kER17eQd6L2FY2iuu1qBXwGf39/UxKZRJtPyyNZlszgNtrwur1Ne5IzsxNzIjj43dSweHrq3NpSbOqVU0sOnaLr7lFHUCh7GTUIlQamM6mJ3djvk47Sb3aYjJxZdwQ1HSMG/UZhGSrSPPX3rnlchJtu9MgKMWXV9T7+upc1qXHZfBtP2nQGyUlhTUb0eRSqVTlDdrEPklSxl8qK706ffmyL4N9fLrNk8o8sg7nHcokc5uo4MDfUeMITMLWhobJZOIKJnw+UluQz4zvdDjvUKaPT7d5y5d9GYwN6YTY9DZvVVSmqTVBcZM2ptsDDl9fXauCo9U1iL2OOw5o3/5SU+Dzrq8sXh572tYcLS4yfvyE/zt16uR76OhSzRTc4dkYLb5RbepnqPenkgRyuVxM7XmFz8fGWNlDdhzO9b5pS7zLGTWHU2gQ0nEPGbDQdk1ytsrtcM6D43MTM+KKL6+oF0Kb0KV0BwYGfIZOr7+/X5MfawteLpeL0aSxx1chP0vVViQgsrOzTehzKJVJQD7fhPHy+Vzela/WUKlU5WguZ6oNRe0BHE6jQag+Cd84CTnIPr0l2remhq2c9m5EsZDaBBMvMbBITb+OHBm5EyPz5A6P2gZ9AL7+hzXqlqRor18vF/v7+5mkMo8sfBaLw90Y+FOr1buFSBVBWbLELM7UfCxCrfHDXuOf+QT/mMwqoYPB7QYgpLk1M0Hb9ddi/S1bOvpRHfiWCi5hwiOaPFFRY4EEB5N5hYBCP4cp/YX6WQQJBjERII4woZqKWZTYZ4cYaVdbTGMUMp3ImTSHU5lYVHMLF3SsUhoaPMi7jm/TMtKBT1NrghAcMxO0XYXQJGwmGfa9pYKDadGjeRQ5MnInprhwcfgRLFR/g+4Zheqb1WC6iszpv8bW2+qIWzaxQd51b0wMCXdWcDglQAAa4iQzE7Rdk5Txl9ZufLurLZ39MGaSqTYUzU3MiMPgIlmBaIswmSikGUfa/gANEWqpzCOL6odQo9qdO3vlY7lyXt7BJiCRy+VNiIE/zf/rW6Q/hJ3bB74QUkX3jEKkiiDzqNfXuMdN2pieqTYUXb1kmGWrKbx249tdp70bUTwzQdvVGcHhlCYWddfDibVHjSPTFTDA+91PUiftAGhIf3CdfFBQtotyEi0gOBp76j6h0q0oCCQsRqJeq1QmNcsgxmOh9+dkryJNsuXLvgx2RIIhaqaP5+6JsXUe6Mzflkw8bHcAQXs3ZMDH4uLLK+qXLcocXHrx8U98GRLqzvXaJMnfcBH5+upcJk36TjCgoBPfubNXPt5Tr69xD30pdJNBXzuFChClMgmys7NNZPGWQhE3LTf3gJaOrkU/g+wDhd8ppBNOBcaXy36YVHa5asu1KwaxPZtU0/KFd0yOrud4BgDSlOHCbFBb2BImtgvvHxv/udlRuxldEiQyWUOGhG/Iydn/e7JWAgFFdz2ZVCikYMUfSWiQ5dL2jjcWwDmrv9GmAULd1dDkQn/DlkkDaDhv4sUw2drFy2NPk2C0hx5myoSlM4lIzUEVuqIuBAdpftqbeTszQduVLINFU8peYLQmo/hMAgRNLl/fneIbN2Ls4t7pgEI2h3jK2AAIXX+SptYEFZz88RHXBa3X17hnaHf5oVkoRN4ZGfnG3329pSDkx0MXhtiz8TCZs76+OpdffnlDImQcpgMgLaRNqHay1FP83qgxA0+h+UWCxV7NQqdVWqo5HR0o9Poa97//7dvg84X6eRU3jQohxhAAoC1rjXYBEJzcuc9/a0z/Nba+R48eT8YNX7HFHm1Cp1W6+7gd+HzdZB115wsZsNBl2Mgwr/Wqt2qdc1c0i5KT/+BL13IHtVjhMfEwIcwoJq3hyLy4DoDYqE1mJmi73r5cmVb/2HWSUJNOgoWqWagaZtjIMK+W6LZBB4iZCRldThwtrK5+NByo6RrogHtJRHKyR5mQwKD2L2srjni7BwgugKFhnxlxUoRgX5jAgmZYtdGc/WZ0cC86wAA0UMhe7sfhldoIqH/d6OUhOyLDNpl8tY5eX+Mulcnq/rIERGVXMrxdvpdU/+TR0FqYbiHq9TXu+/5zIfDHQxeGYCdDIUFBNUmF7l/WAZAWsLPJwJaQC4MECwpqmLARphNxirfLW3qBpKk1QbdKvYfcuf1Q4ihA0PkZaH62B3PqmQAIndklJG3JFTAIGoCGsy0AAKqN5mwAAL5+C+ZWzUne7QEA4CURyQEA7lXUjQMAQOcaxRHvxwSMtu6EP7MAaS2gcAEOKX37S60GJlEL9O0vNdH1r22pd0BT6lkBxjMDEDqgoI9yr6JunBDUZnsUKjmBPsZTB/xzp08T6QCIjUwPCZSvtxSE4BELHUBpCgwyFefpJtMaDF0HQFpFo5DxAfLsimcNLNbiPhjvae+mVAdAGIQsGyWdYipY2hNgSL+IKb7j6OTNDoC0UfOLenYF9VQkR1GnLQUKPJSILkPgqbZ4tsyoDoDwFKaDXgCepmhQAeMsoKGyZiQgwkaYTlCLqXx9dS7jxtZ6bdoa90DUAYoOgNgKFrp8JgTMj0dE97wkInlrxSVIcwmgIe5SbTRnj3rV3J2uutD588g6ANJmBSP1APQpHggqTPMAeBrQu39P7+Xr1+U3164YxBj/oNNA5MLH60rOVrkFD/Kuu1H+4Jtu3WXVCASAhnPmJ/52YCnTYhciE/lZlf8Pw1k6fGYUj2cAAAAASUVORK5CYII=";
+function txt(s, x, y, size, color, align, weight){
+  ctx.font = (weight || "bold") + " " + size + 'px "Arial Black",Arial,sans-serif';
+  ctx.textAlign = align || "left";
+  ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = color;
+  ctx.fillText(s, x, y);
+}
+function mono(s, x, y, size, color, align){
+  ctx.font = "bold " + size + 'px Consolas,"Courier New",monospace';
+  ctx.textAlign = align || "left";
+  ctx.fillStyle = color;
+  ctx.fillText(s, x, y);
+}
+function drawShadow(x, y, r){
+  ctx.fillStyle = "rgba(0,0,0,.32)";
+  ctx.beginPath();
+  ctx.ellipse(x, y, r, r * 0.34, 0, 0, 7);
+  ctx.fill();
+}
+function panel(a){
+  ctx.fillStyle = "rgba(8,10,16," + (a || 0.82) + ")";
+  ctx.fillRect(0, 0, W, H);
+}
+
+/* ===== src/render/fighter.js ===== */
+// Отрисовка бойца — и Саши, и противников.
+//
+// Удар рисуется в три фазы через параметр o.ph (0..1):
+//   до 0.28  — замах: подсед, кулак уходит к поясу, плечи разворачиваются назад
+//   до 0.66  — выпад: корпус подаётся вперёд, конечность выстреливает на всю длину
+//   далее    — возврат в стойку
+// Урон в player.js проходит ровно в фазе выпада, чтобы картинка совпадала с попаданием.
+//
+// Поля o: facing, pose, ph, frame, scale, gi (цвет ги), sh (тень ги),
+//         skin, hair, belt, stripe, emblem, band
+function fighter(x, y, z, o){
+  const s = o.scale||1, f = o.facing||1;
+  drawShadow(x, y, 9*s);
+  const b = y - z;
+  const gi = o.gi||"#f2ede2", sh = o.sh||"#c9c2b4", skin = o.skin||"#e8b98f", hair = o.hair||"#241a12";
+  const pose = o.pose||"idle", fr = o.frame||0;
+  const ph = o.ph!==undefined ? Math.max(0, Math.min(1, o.ph)) : 0;
+
+  // фазы удара: 0 — замах, 1 — выпад, 2 — возврат
+  let ap = -1, ext = 0, lunge = 0;
+  if(pose==="punch" || pose==="kick"){
+    if(ph < 0.28){ const k = ph/0.28; ap = 0; ext = -0.22*k; lunge = -2*k; }
+    else if(ph < 0.66){ const k = (ph-0.28)/0.38; ap = 1; ext = -0.22 + 1.22*Math.min(1, k*1.8); lunge = 4*Math.min(1, k*2); }
+    else { const k = (ph-0.66)/0.34; ap = 2; ext = 1 - k; lunge = 4*(1-k); }
+  }
+
+  ctx.save(); ctx.translate(x, b); ctx.scale(s*f, s);
+
+  if(pose === "down"){
+    ctx.fillStyle = gi; ctx.fillRect(-16, -10, 30, 9);
+    ctx.fillStyle = o.belt||"#000"; ctx.fillRect(-4, -10, 4, 9);
+    ctx.fillStyle = skin; ctx.fillRect(14, -12, 9, 9);
+    ctx.fillStyle = hair; ctx.fillRect(14, -14, 10, 4);
+    ctx.restore(); return;
+  }
+
+  const lean = (pose==="hurt") ? -3 : 0;
+  const bob = (pose==="idle") ? Math.sin(fr*0.6)*0.8 : 0;
+  const crouch = (ap===0) ? 1.5 : 0;           // подсед на замахе
+  const up = -crouch;                           // подъём тела
+
+  /* ---- НОГИ ---- */
+  ctx.fillStyle = gi;
+  if(pose === "kick"){
+    ctx.fillRect(-8, -13, 6, 13);               // опорная
+    const L = 5 + 21*Math.max(0, ext);
+    if(ap === 0){                               // колено поднято
+      ctx.fillRect(0, -21, 9, 6);
+      ctx.fillRect(6, -21, 5, 11);
+      ctx.fillStyle = sh; ctx.fillRect(5, -11, 7, 3);
+    } else {
+      ctx.fillRect(0, -21, L, 6);               // нога вперёд
+      ctx.fillStyle = sh; ctx.fillRect(L-3, -22, 7, 7);
+    }
+  } else if(pose === "walk"){
+    const sw = Math.sin(fr)*4;
+    ctx.fillRect(-8+sw, -13, 6, 13);
+    ctx.fillRect(2-sw, -13, 6, 13);
+  } else if(ap === 0){                          // подсед на замахе руки
+    ctx.fillRect(-9, -12, 6, 12);
+    ctx.fillRect(3, -12, 6, 12);
+  } else if(pose === "punch"){
+    ctx.fillRect(-10, -13, 6, 13);
+    ctx.fillRect(3, -13, 6, 13);
+  } else {
+    ctx.fillRect(-8, -13, 6, 13);
+    ctx.fillRect(2, -13, 6, 13);
+  }
+  ctx.fillStyle = sh;
+  if(pose !== "kick"){ ctx.fillRect(-9, -2, 8, 2); ctx.fillRect(1, -2, 8, 2); }
+  else ctx.fillRect(-9, -2, 8, 2);
+
+  /* ---- КОРПУС (со сдвигом вперёд на выпаде) ---- */
+  ctx.save(); ctx.translate(lunge, up);
+  const twist = (ap===0) ? -2 : (ap===1 ? 2 : 0);   // разворот плеч
+
+  ctx.fillStyle = o.belt||"#2f6fd0"; ctx.fillRect(-9, -17+bob, 18, 4);
+  if(o.stripe){ ctx.fillStyle = o.stripe; ctx.fillRect(-9, -15.5+bob, 18, 1.4); }
+  ctx.fillStyle = o.belt||"#2f6fd0";
+  const bx = (ap===1) ? -5 : -3;
+  ctx.fillRect(bx, -14+bob, 3, 6+ (ap===1?2:0)); ctx.fillRect(bx+4, -14+bob, 3, 5);
+
+  ctx.fillStyle = gi; ctx.fillRect(-9+lean*0.4+twist*0.5, -30+bob, 18, 14);
+  ctx.fillStyle = sh;
+  ctx.beginPath();
+  ctx.moveTo(-2+lean*0.4+twist*0.5, -30+bob); ctx.lineTo(6+lean*0.4+twist*0.5, -30+bob);
+  ctx.lineTo(-2+lean*0.4+twist*0.5, -18+bob); ctx.fill();
+  if(o.emblem){ ctx.fillStyle = "#c1272d"; ctx.fillRect(-7+twist*0.5, -28+bob, 4, 4); }
+
+  const hy = -42+bob+lean;
+  ctx.fillStyle = skin; ctx.fillRect(-5+twist*0.4, hy, 11, 11);
+  ctx.fillStyle = hair; ctx.fillRect(-6+twist*0.4, hy-2, 13, 5); ctx.fillRect(-6+twist*0.4, hy, 3, 4);
+  ctx.fillStyle = "#1a1a1a"; ctx.fillRect(2+twist*0.4, hy+4, 2, 2);
+  if(o.band){ ctx.fillStyle = "#c1272d"; ctx.fillRect(-6+twist*0.4, hy+2, 13, 2.5); }
+
+  /* ---- РУКИ ---- */
+  ctx.fillStyle = gi;
+  if(pose === "punch"){
+    if(ap === 0){                                  // кулак у пояса, замах
+      ctx.fillRect(-13, -27+bob, 10, 5);
+      ctx.fillStyle = skin; ctx.fillRect(-16, -28+bob, 6, 6);
+      ctx.fillStyle = gi; ctx.fillRect(2, -28+bob, 7, 5);
+      ctx.fillStyle = skin; ctx.fillRect(7, -29+bob, 5, 5);
+    } else {
+      const L = 6 + 16*Math.max(0, ext);
+      ctx.fillRect(4, -28+bob, L, 5);
+      ctx.fillStyle = skin; ctx.fillRect(4+L, -29.5+bob, 7, 7);
+      ctx.fillStyle = gi; ctx.fillRect(-11, -27+bob, 8, 5);  // отведённая назад
+      if(ap === 1){                                 // след удара
+        ctx.fillStyle = "rgba(255,255,255,.55)";
+        ctx.fillRect(2, -30+bob, L, 1); ctx.fillRect(2, -24+bob, L-4, 1);
+      }
+    }
+  } else if(pose === "kick"){
+    ctx.fillRect(2, -30+bob, 7, 5); ctx.fillRect(-10, -26+bob, 7, 5);
+    ctx.fillStyle = skin; ctx.fillRect(7, -31+bob, 5, 5); ctx.fillRect(-13, -27+bob, 5, 5);
+    if(ap === 1){
+      ctx.strokeStyle = "rgba(255,255,255,.5)"; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(0, -18-bob*0+bob, 22, -0.9, 0.25); ctx.stroke();
+    }
+  } else if(pose === "block"){
+    ctx.fillRect(0, -36+bob, 6, 16);
+    ctx.fillStyle = skin; ctx.fillRect(1, -38+bob, 5, 5);
+    ctx.fillStyle = gi; ctx.fillRect(-6, -32+bob, 6, 12);
+  } else if(pose === "kiai"){
+    ctx.fillRect(-12, -32+bob, 8, 5); ctx.fillRect(6, -32+bob, 8, 5);
+    ctx.fillStyle = skin; ctx.fillRect(-15, -33+bob, 5, 5); ctx.fillRect(13, -33+bob, 5, 5);
+  } else if(pose === "hurt"){
+    ctx.fillRect(-14, -30+bob, 7, 5); ctx.fillRect(7, -30+bob, 7, 5);
+  } else {
+    const sw = pose==="walk" ? Math.sin(fr)*2 : 0;
+    ctx.fillRect(2, -28+bob+sw, 7, 5);
+    ctx.fillRect(-8, -27+bob-sw, 7, 5);
+    ctx.fillStyle = skin; ctx.fillRect(7, -29+bob+sw, 5, 5); ctx.fillRect(-10, -28+bob-sw, 5, 5);
+  }
+  ctx.restore();
+  ctx.restore();
+}
+
+/* ===== src/render/background.js ===== */
+// Фоны уровней. Дальний план движется медленнее переднего — параллакс.
+function drawBG(theme){
+  const th = {
+    dojo:   { sky:["#2a2118","#42342a"], mid:"#1d1710", floor:["#4a7a52","#3f6a46"], line:"#2e5236" },
+    yard:   { sky:["#5aa0d8","#a8d3ef"], mid:"#3c6f4a", floor:["#9a9284","#8a8375"], line:"#6e6a60" },
+    park:   { sky:["#7cc0e8","#cfe9f5"], mid:"#2f6b3c", floor:["#6f9a4e","#628c45"], line:"#4e7038" },
+    gym:    { sky:["#3a3f52","#4c5468"], mid:"#2b3040", floor:["#8a6d4a","#7c6141"], line:"#5f4a31" },
+    roofs:  { sky:["#20304f","#5b4a7a"], mid:"#141c30", floor:["#4a5060","#414653"], line:"#2e323c" },
+    bridge: { sky:["#1b2a44","#2f4a6d"], mid:"#132033", floor:["#5a5f6b","#50545f"], line:"#383c45" },
+    temple: { sky:["#3b2c46","#6b4a5a"], mid:"#221a29", floor:["#6a5a48","#5d4f3f"], line:"#42382c" },
+    tatami: { sky:["#14161f","#23283a"], mid:"#0e1017", floor:["#3f7060","#376353"], line:"#2a4c40" }
+  }[theme];
+
+  const g = ctx.createLinearGradient(0,0,0,175);
+  g.addColorStop(0, th.sky[0]); g.addColorStop(1, th.sky[1]);
+  ctx.fillStyle = g; ctx.fillRect(0,0,W,175);
+
+  const px = -(G.camX*0.35)%W;
+  ctx.fillStyle = th.mid;
+  for(let k=-1;k<=1;k++) drawMid(theme, px + k*W, th);
+
+  // пол
+  const fg = ctx.createLinearGradient(0,175,0,H);
+  fg.addColorStop(0, th.floor[0]); fg.addColorStop(1, th.floor[1]);
+  ctx.fillStyle = fg; ctx.fillRect(0,175,W,H-175);
+  ctx.fillStyle = "rgba(0,0,0,.25)"; ctx.fillRect(0,175,W,2);
+  ctx.strokeStyle = th.line; ctx.lineWidth = 1;
+  const off = -(G.camX*0.9)%40;
+  for(let x=off; x<W+40; x+=40){ ctx.beginPath(); ctx.moveTo(x,176); ctx.lineTo(x-14,H); ctx.stroke(); }
+  for(let y=190;y<H;y+=22){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+}
+function drawMid(theme, ox, th){
+  ctx.save(); ctx.translate(ox,0);
+  const c = ctx;
+  if(theme==="dojo"){
+    c.fillStyle="#241c14"; c.fillRect(0,54,W,122);
+    c.fillStyle="#3a2c1e"; c.fillRect(0,54,W,10);
+    for(let x=8;x<W;x+=112) c.fillRect(x,54,12,122);
+    c.fillStyle="#2e2519";
+    for(let x=26;x<W;x+=112) c.fillRect(x,70,84,86);
+    c.strokeStyle="#4a3a26"; c.lineWidth=1;
+    for(let x=26;x<W;x+=112){
+      for(let gy=70;gy<156;gy+=22){ c.beginPath(); c.moveTo(x,gy); c.lineTo(x+84,gy); c.stroke(); }
+      for(let gx=x;gx<=x+84;gx+=28){ c.beginPath(); c.moveTo(gx,70); c.lineTo(gx,156); c.stroke(); }
+    }
+    // стена клуба с эмблемой КАЙТАКА
+    c.fillStyle="#f2ede2"; c.fillRect(174,64,132,92);
+    c.fillStyle="#3f3a8c"; c.fillRect(174,64,132,5); c.fillRect(174,151,132,5);
+    if(logo.ok) c.drawImage(LOGO, 186, 70, 108, 101);
+    c.font='bold 7px Consolas,monospace'; c.textAlign="center";
+    c.fillStyle="#4a4470"; c.fillText("КАРАТЭ МУРОМ", 240, 166);
+    [150, 330].forEach(bx => {
+      c.fillStyle="#2b2670"; c.fillRect(bx,66,16,74);
+      c.fillStyle="#3f3a8c"; c.fillRect(bx+2,68,12,70);
+      c.fillStyle="#f2ede2"; c.fillRect(bx+6,74,4,4); c.fillRect(bx+6,84,4,14); c.fillRect(bx+6,102,4,10);
+      c.fillStyle="#3a2c1e"; c.fillRect(bx-3,62,22,5);
+    });
+    c.fillStyle="#3a2c1e"; c.fillRect(392,120,58,6); c.fillRect(392,146,58,6);
+    c.fillStyle="#6b5334"; for(let i=0;i<3;i++) c.fillRect(398+i*18,112,5,42);
+  } else if(theme==="yard"){
+    c.fillStyle="#d9c9a3"; c.fillRect(30,74,150,102); c.fillStyle="#b9a583"; c.fillRect(30,74,150,8);
+    c.fillStyle="#6ea3c9"; for(let x=42;x<170;x+=26) for(let y=90;y<160;y+=26) c.fillRect(x,y,16,16);
+    c.fillStyle="#3c6f4a"; for(let x=230;x<W;x+=70){ c.fillRect(x,120,8,56); c.beginPath(); c.arc(x+4,112,26,0,7); c.fill(); }
+  } else if(theme==="park"){
+    c.fillStyle="#2f6b3c";
+    for(let x=10;x<W;x+=58){ c.fillRect(x,124,7,52); c.beginPath(); c.arc(x+3,112,24,0,7); c.fill(); }
+    c.fillStyle="#e0b8c8"; c.beginPath(); c.arc(200,104,22,0,7); c.fill(); c.fillStyle="#5b4630"; c.fillRect(197,120,6,56);
+  } else if(theme==="gym"){
+    c.fillStyle="#2b3040"; c.fillRect(0,50,W,126);
+    c.fillStyle="#454c60"; for(let x=16;x<W;x+=64) c.fillRect(x,60,34,40);
+    c.fillStyle="#8a8f9e"; c.fillRect(120,50,6,52); c.fillStyle="#c1272d"; c.fillRect(104,100,38,10);
+    c.fillStyle="#5a6070"; c.fillRect(320,50,4,60); c.beginPath(); c.arc(322,116,10,0,7); c.fill();
+  } else if(theme==="roofs"){
+    c.fillStyle="#141c30";
+    const hs=[70,110,88,130,96,120,80];
+    for(let i=0;i<hs.length;i++){ const x=i*72, h=hs[i]; c.fillRect(x,176-h,64,h); }
+    c.fillStyle="#e8b647"; for(let i=0;i<hs.length;i++){ for(let y=176-hs[i]+8;y<170;y+=14) for(let x=i*72+6;x<i*72+58;x+=14) if((x+y)%3===0) c.fillRect(x,y,4,5); }
+    c.fillStyle="#fff"; for(let i=0;i<26;i++) c.fillRect((i*97)%W, (i*53)%60, 1,1);
+  } else if(theme==="bridge"){
+    c.fillStyle="#132033"; c.fillRect(0,150,W,26);
+    c.strokeStyle="#4a5a74"; c.lineWidth=3;
+    for(let x=-40;x<W+80;x+=160){ c.beginPath(); c.moveTo(x,150); c.quadraticCurveTo(x+80,52,x+160,150); c.stroke(); }
+    c.fillStyle="#4a5a74"; for(let x=0;x<W;x+=20) c.fillRect(x,120,3,32);
+    c.fillStyle="#e8b647"; c.globalAlpha=.5; c.beginPath(); c.arc(390,60,18,0,7); c.fill(); c.globalAlpha=1;
+  } else if(theme==="temple"){
+    c.fillStyle="#221a29"; c.beginPath(); c.moveTo(0,176); c.lineTo(90,86); c.lineTo(180,176); c.fill();
+    c.beginPath(); c.moveTo(230,176); c.lineTo(330,70); c.lineTo(430,176); c.fill();
+    c.fillStyle="#c1272d"; c.fillRect(180,110,90,10); c.fillRect(190,110,10,66); c.fillRect(250,110,10,66);
+    c.fillStyle="#8b1f24"; c.beginPath(); c.moveTo(172,112); c.lineTo(225,92); c.lineTo(278,112); c.fill();
+  } else {
+    c.fillStyle="#0e1017"; c.fillRect(0,40,W,136);
+    c.fillStyle="#c1272d"; c.globalAlpha=.85; c.beginPath(); c.arc(240,100,44,0,7); c.fill(); c.globalAlpha=1;
+    c.fillStyle="#0e1017"; c.beginPath(); c.arc(240,100,34,0,7); c.fill();
+    c.fillStyle="#f2ede2"; c.font='bold 26px "Yu Mincho",serif'; c.textAlign="center"; c.fillText("極真",240,110);
+    c.fillStyle="#2a2f42"; for(let x=0;x<W;x+=96) c.fillRect(x,60,10,116);
+  }
+  c.restore();
+}
+
+/* мир */
+
+/* ===== src/player.js ===== */
+// Логика Саши: движение, удары, блок, киай, получение урона.
+
+
+
+
+// Длительность ударов. Урон проходит в средней фазе — в момент выпада.
+const PUNCH_DUR = 0.30, PUNCH_FROM = 0.08, PUNCH_TO = 0.19;
+const KICK_DUR  = 0.40, KICK_FROM  = 0.14, KICK_TO  = 0.28;
+
+function isBusy(){
+  return P.st === "punch" || P.st === "kick" || P.st === "hurt" || P.st === "kiai";
+}
+function updatePlayer(dt){
+  if(P.dead){ P.st = "down"; return; }
+  if(P.inv > 0) P.inv -= dt;
+  P.stT += dt;
+
+  const wasBusy = isBusy();
+
+  if(!wasBusy){
+    if(took("punch")){
+      P.st = "punch"; P.stT = 0; P.hits = new Set(); faceNearest(); S.punch();
+    } else if(took("kick")){
+      P.st = "kick"; P.stT = 0; P.hits = new Set(); faceNearest(); S.kick();
+    } else if(took("kiai") && P.spirit >= 100){
+      P.st = "kiai"; P.stT = 0; P.spirit = 0;
+      S.kiai(); G.shake = 1; G.flash = 0.7;
+      doKiai();
+    } else if(keys.block){
+      if(P.st !== "block"){ P.st = "block"; P.stT = 0; }
+    } else if(P.st === "block"){
+      P.st = "idle";
+    }
+  }
+
+  // Внимание: busy пересчитывается ПОСЛЕ обработки ввода.
+  // Если взять старое значение, блок движения ниже сбросит только что начатый
+  // удар обратно в стойку в том же кадре — и удар не нанесёт урона вообще.
+  const busy = isBusy();
+  const blocking = P.st === "block";
+
+  if(!busy && !blocking){
+    const dx = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+    const dy = (keys.down ? 1 : 0) - (keys.up ? 1 : 0);
+    const sp = 78;
+    if(dx || dy){
+      const n = (dx && dy) ? 0.72 : 1;   // по диагонали не быстрее
+      P.x += dx * sp * n * dt;
+      P.y += dy * sp * 0.62 * n * dt;    // по глубине медленнее — так выглядит объёмнее
+      if(dx) P.facing = dx;
+      P.st = "walk";
+      P.anim += dt * 9;
+    } else if(P.st !== "idle"){
+      P.st = "idle";
+    }
+  }
+
+  // Границы арены.
+  P.x = Math.max(G.camX + 12, Math.min(G.camX + W - 14, P.x));
+  P.y = Math.max(182, Math.min(252, P.y));
+
+  // Возврат в стойку.
+  if(P.st === "punch" && P.stT > PUNCH_DUR) P.st = "idle";
+  if(P.st === "kick"  && P.stT > KICK_DUR)  P.st = "idle";
+  if(P.st === "hurt"  && P.stT > 0.32) P.st = "idle";
+  if(P.st === "kiai"  && P.stT > 0.5)  P.st = "idle";
+
+  // Активные кадры удара.
+  if(P.st === "punch" && P.stT > PUNCH_FROM && P.stT < PUNCH_TO) attack(14, 30, 22, 10, 5);
+  if(P.st === "kick"  && P.stT > KICK_FROM  && P.stT < KICK_TO)  attack(18, 36, 24, 18, 9);
+}
+
+// Фаза удара 0..1 — нужна отрисовке, чтобы показать замах, выпад и возврат.
+function attackPhase(){
+  if(P.st === "punch") return P.stT / PUNCH_DUR;
+  if(P.st === "kick")  return P.stT / KICK_DUR;
+  return 0;
+}
+
+// Доворот к ближайшему противнику. Без него ребёнок часто бьёт в пустоту.
+function faceNearest(){
+  let best = null, bd = 70;
+  for(const e of G.enemies){
+    if(e.dying) continue;
+    const d = Math.abs(e.x - P.x) + Math.abs(e.y - P.y) * 1.4;
+    if(d < bd){ bd = d; best = e; }
+  }
+  if(best && Math.abs(best.x - P.x) > 3) P.facing = best.x > P.x ? 1 : -1;
+}
+
+function attack(off, len, ry, dmg, kb){
+  const hx = P.x + P.facing * (off + len / 2);
+  for(const e of G.enemies){
+    if(e.dying) continue;
+    if(P.hits.has(e)) continue;      // один удар — одно попадание по цели
+    if(Math.abs(e.x - hx) < len / 2 + 12 * e.big &&
+       Math.abs(e.y - P.y) < ry &&
+       Math.abs(e.z - P.z) < 30){
+      P.hits.add(e);
+      hitEnemy(e, dmg, kb);
+    }
+  }
+}
+function hitEnemy(e, dmg, kb){
+  const T = TYPES[e.type];
+  let d = dmg;
+
+  if(e.st === "guard"){
+    d = Math.max(1, Math.round(dmg * 0.2));   // блок почти всё гасит
+    S.block();
+  } else {
+    S.hit();
+    G.shake = Math.max(G.shake, 0.4);
+  }
+
+  e.hp -= d;
+  e.hurt = 0.18;
+  e.x += P.facing * kb * (e.boss ? 0.35 : 1);
+
+  // Дух копится от попаданий. По манекенам — медленнее.
+  P.spirit = Math.min(100, P.spirit + (T.stat ? 4 : 8));
+
+  for(let i = 0; i < 4; i++){
+    G.fx.push({ x: e.x, y: e.y - 22 * e.big, vx: (Math.random() - 0.5) * 90,
+                vy: -30 - Math.random() * 60, t: 0, life: 0.35, c: "#e8b647" });
+  }
+  G.fx.push({ x: e.x, y: e.y - 24 * e.big, vx: 0, vy: 0, t: 0, life: 0.2, c: "#fff", big: 1 });
+  G.fx.push({ x: e.x - P.facing * 6, y: e.y - 26 * e.big, vx: 0, vy: 0, t: 0, life: 0.14, c: "#fff", star: 1 });
+
+  if(e.hp <= 0) killEnemy(e);
+}
+
+function killEnemy(e){
+  e.dying = 0.001;
+  e.st = "down";
+  S.down();
+  if(!e.boss && Math.random() < 0.3) G.items.push({ x: e.x, y: e.y, t: 0 });
+  if(e.boss){ G.flash = 1; G.shake = 1.2; }
+}
+
+// Киай — удар духом по всем вокруг. Копится по шкале от попаданий.
+function doKiai(){
+  for(const e of G.enemies){
+    if(e.dying) continue;
+    if(Math.abs(e.x - P.x) < 92 && Math.abs(e.y - P.y) < 46){
+      const back = e.x > P.x ? 1 : -1;
+      e.hp -= 34;
+      e.hurt = 0.3;
+      e.x += back * 14;
+      e.st = "hurt"; e.stT = 0; e.didHit = 0;
+      if(e.hp <= 0) killEnemy(e);
+    }
+  }
+  for(let i = 0; i < 20; i++){
+    G.fx.push({ x: P.x, y: P.y - 20,
+                vx: Math.cos(i / 20 * 6.28) * 150, vy: Math.sin(i / 20 * 6.28) * 70,
+                t: 0, life: 0.45, c: "#c1272d" });
+  }
+}
+function damagePlayer(d){
+  if(P.inv > 0 || P.dead) return;
+
+  if(P.st === "block"){
+    d = Math.max(1, Math.round(d * 0.25));
+    S.block();
+    P.spirit = Math.min(100, P.spirit + 4);   // блок тоже копит дух
+  } else {
+    S.hurt();
+    P.st = "hurt"; P.stT = 0;
+    G.shake = Math.max(G.shake, 0.6);
+  }
+
+  P.hp -= d;
+  P.inv = 0.75;
+
+  if(P.hp <= 0){
+    P.hp = 0;
+    P.dead = true;
+    G.lives--;
+    if(G.lives <= 0){
+      G.state = "gameover";
+      G.screenT = 0;
+      S.lose();
+    } else {
+      setTimeout(() => { if(G.state === "play") resetPlayer(false); }, 900);
+    }
+  }
+}
+
+/* ===== src/enemies.js ===== */
+// Поведение противников, летящих снарядов и подбираемых предметов.
+function updateEnemies(dt){
+  for(let i=G.enemies.length-1;i>=0;i--){
+    const e = G.enemies[i];
+    if(e.dying){ e.dying += dt; if(e.dying > 0.9) G.enemies.splice(i,1); continue; }
+    const T = TYPES[e.type];
+    e.stT += dt; if(e.hurt>0) e.hurt -= dt; e.anim += dt*6;
+    e.facing = P.x < e.x ? -1 : 1;
+
+    // фазы босса
+    if(e.type==="sensei"){
+      const r = e.hp/e.maxhp;
+      e.phase = r>0.66?1:(r>0.33?2:3);
+    }
+    const speedBoost = e.type==="sensei" ? (1 + (e.phase-1)*0.28) : 1;
+
+    if(T.stat){ // манекен
+      if(e.st!=="down") e.st = "idle";
+      continue;
+    }
+    if(e.st==="hurt"){ if(e.stT>0.3) e.st="walk"; continue; }
+    if(e.st==="attack"){
+      if(!T.ranged){
+        if(e.stT>0.18 && e.stT<0.3 && !e.didHit){
+          e.didHit = 1;
+          if(Math.abs(P.x-e.x) < T.reach+10*e.big && Math.abs(P.y-e.y) < 18 && !P.dead) damagePlayer(e.dmg);
+        }
+      } else {
+        if(e.stT>0.25 && !e.didHit){
+          e.didHit = 1;
+          G.shots.push({ x:e.x + e.facing*10, y:e.y, z:14, vx:e.facing*115, dmg:e.dmg, t:0 });
+          S.throwBall();
+        }
+      }
+      if(e.stT>0.55){ e.st="walk"; e.cd = T.cd*(0.75+Math.random()*0.5)/speedBoost; e.didHit=0; }
+      continue;
+    }
+    if(e.st==="guard"){
+      e.guardT -= dt;
+      if(e.guardT<=0){ e.st="walk"; e.cd = 0.35; }
+      continue;
+    }
+
+    // движение
+    const dx = P.x - e.x, dy = P.y - e.y;
+    const dist = Math.abs(dx);
+    let tx = 0, ty = 0;
+    if(T.ranged){
+      const want = 96;
+      if(dist > want+16) tx = Math.sign(dx);
+      else if(dist < want-16) tx = -Math.sign(dx);
+      if(Math.abs(dy) > 5) ty = Math.sign(dy);
+    } else {
+      if(dist > T.reach - 4) tx = Math.sign(dx);
+      if(Math.abs(dy) > 4) ty = Math.sign(dy);
+    }
+    const sp = e.sp * speedBoost;
+    e.x += tx*sp*dt; e.y += ty*sp*0.55*dt;
+    e.y = Math.max(182, Math.min(252, e.y));
+    e.st = (tx||ty) ? "walk" : "idle";
+
+    // вход на арену
+    if(!e.entered && e.x < G.camX + W - 16) e.entered = true;
+    if(e.entered) e.x = Math.max(G.camX+10, Math.min(G.camX+W-10, e.x));
+
+    // атака
+    e.cd -= dt;
+    if(e.cd <= 0 && !P.dead){
+      const inRange = T.ranged ? (dist < T.reach && Math.abs(dy) < 12)
+                               : (dist < T.reach + 8*e.big && Math.abs(dy) < 16);
+      if(inRange){
+        if(T.guard && Math.random() < (e.type==="sensei"?0.2:0.4)){
+          e.st="guard"; e.guardT = 0.7 + Math.random()*0.5; e.stT=0;
+        } else { e.st="attack"; e.stT=0; e.didHit=0; }
+      } else if(T.guard && dist < 70 && Math.random()<0.012){
+        e.st="guard"; e.guardT=0.6; e.stT=0;
+      }
+    }
+  }
+}
+function updateShots(dt){
+  for(let i=G.shots.length-1;i>=0;i--){
+    const s = G.shots[i]; s.x += s.vx*dt; s.t += dt;
+    if(!P.dead && Math.abs(s.x-P.x)<11 && Math.abs(s.y-P.y)<12 && Math.abs(P.z-6)<24){
+      damagePlayer(s.dmg); G.shots.splice(i,1); continue;
+    }
+    if(s.x < G.camX-20 || s.x > G.camX+W+20 || s.t>4) G.shots.splice(i,1);
+  }
+}
+function updateItems(dt){
+  for(let i=G.items.length-1;i>=0;i--){
+    const it = G.items[i]; it.t += dt;
+    if(Math.abs(it.x-P.x)<13 && Math.abs(it.y-P.y)<12){
+      P.hp = Math.min(P.maxhp, P.hp+25); S.pick();
+      G.fx.push({x:it.x,y:it.y-14,vx:0,vy:-40,t:0,life:0.5,c:"#8ee06a",big:1});
+      G.items.splice(i,1); continue;
+    }
+    if(it.t > 16) G.items.splice(i,1);
+  }
+}
+
+/* ===== src/render/world.js ===== */
+// Отрисовка игрового мира: враги, игрок, предметы, снаряды, эффекты.
+// Объекты сортируются по глубине Y, чтобы дальние были позади ближних.
+function drawWorld(){
+  ctx.save(); ctx.translate(-G.camX, 0);
+  const list = [];
+  for(const it of G.items) list.push({ y:it.y, f:()=>drawItem(it) });
+  for(const e of G.enemies) list.push({ y:e.y, f:()=>drawEnemy(e) });
+  if(!P.dead || G.lives>0) list.push({ y:P.y, f:()=>drawPlayer() });
+  list.sort((a,b)=>a.y-b.y);
+  for(const o of list) o.f();
+  for(const s of G.shots){
+    ctx.fillStyle="rgba(0,0,0,.25)"; ctx.beginPath(); ctx.ellipse(s.x, s.y, 5,2,0,0,7); ctx.fill();
+    ctx.fillStyle="#e8b647"; ctx.beginPath(); ctx.arc(s.x, s.y-s.z, 5,0,7); ctx.fill();
+    ctx.fillStyle="#c1272d"; ctx.fillRect(s.x-4, s.y-s.z-1, 8, 2);
+  }
+  for(const f of G.fx){
+    ctx.globalAlpha = Math.max(0, 1-f.t/f.life);
+    ctx.fillStyle = f.c;
+    if(f.star){
+      const r = 5 + f.t*46;
+      ctx.strokeStyle = f.c; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(f.x-r,f.y); ctx.lineTo(f.x+r,f.y);
+      ctx.moveTo(f.x,f.y-r*0.7); ctx.lineTo(f.x,f.y+r*0.7);
+      ctx.moveTo(f.x-r*0.6,f.y-r*0.5); ctx.lineTo(f.x+r*0.6,f.y+r*0.5);
+      ctx.moveTo(f.x-r*0.6,f.y+r*0.5); ctx.lineTo(f.x+r*0.6,f.y-r*0.5);
+      ctx.stroke();
+    }
+    else if(f.big){ const r = 4+f.t*40; ctx.beginPath(); ctx.arc(f.x,f.y,r,0,7); ctx.lineWidth=2; ctx.strokeStyle=f.c; ctx.stroke(); }
+    else ctx.fillRect(f.x, f.y, 2, 2);
+    ctx.globalAlpha = 1;
+  }
+  // стрелка «вперёд»
+  if(G.cleared && !G.bossFight){
+    const a = 0.55+0.45*Math.sin(G.t*7);
+    ctx.globalAlpha = a; ctx.fillStyle="#e8b647";
+    const ax = G.camX+W-34, ay = 150;
+    ctx.beginPath(); ctx.moveTo(ax,ay-9); ctx.lineTo(ax+16,ay); ctx.lineTo(ax,ay+9); ctx.fill();
+    ctx.fillRect(ax-14,ay-3,14,6);
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+function drawItem(it){
+  const b = Math.sin(it.t*5)*2;
+  ctx.fillStyle="rgba(0,0,0,.3)"; ctx.beginPath(); ctx.ellipse(it.x,it.y,7,2.5,0,0,7); ctx.fill();
+  ctx.fillStyle="#f6f2e8";
+  ctx.beginPath(); ctx.moveTo(it.x, it.y-16+b); ctx.lineTo(it.x+7, it.y-4+b); ctx.lineTo(it.x-7, it.y-4+b); ctx.fill();
+  ctx.fillStyle="#1c2330"; ctx.fillRect(it.x-4, it.y-8+b, 8, 4);
+}
+
+/* фигуры */
+
+function drawPlayer(){
+  if(P.dead && G.lives<=0) { fighter(P.x, P.y, 0, { facing:P.facing, pose:"down", belt:BELTS[G.beltIdx].c }); return; }
+  if(P.dead){ fighter(P.x, P.y, 0, { facing:P.facing, pose:"down", belt:BELTS[G.beltIdx].c }); return; }
+  if(P.inv > 0 && Math.floor(G.t*20)%2===0) return;
+  const B = BELTS[G.beltIdx];
+  let pose = P.st==="walk" ? "walk" : P.st;
+  let ph = 0;
+  ph = attackPhase();
+  fighter(P.x, P.y, P.z, {
+    facing:P.facing, pose, ph, frame: pose==="walk"?P.anim:G.t*2,
+    gi:"#f7f4ec", sh:"#d8d2c4", belt:B.c, stripe:B.s, emblem:1, band:1, scale:1
+  });
+  if(P.st==="kiai" && P.stT<0.4){
+    ctx.globalAlpha = 1-P.stT/0.4; ctx.strokeStyle="#c1272d"; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.ellipse(P.x, P.y-20, 30+P.stT*120, 14+P.stT*54, 0,0,7); ctx.stroke();
+    ctx.globalAlpha=1;
+  }
+}
+function drawEnemy(e){
+  const T = TYPES[e.type];
+  if(T.stat){
+    // манекен / мешок
+    const h = e.type==="bag" ? 46 : 40, w = e.type==="bag" ? 16 : 11;
+    drawShadow(e.x, e.y, w*0.7);
+    const tilt = e.hurt>0 ? Math.sin(G.t*40)*2 : 0;
+    ctx.save(); ctx.translate(e.x+tilt, e.y);
+    if(e.dying){ ctx.rotate(Math.min(1.4, e.dying*2)); }
+    if(e.type!=="bag"){ ctx.fillStyle="#4a3a26"; ctx.fillRect(-w/2-3, -6, w+6, 6); } // основание стойки
+    ctx.fillStyle = T.gi; ctx.fillRect(-w/2, -h, w, h);
+    ctx.fillStyle = "rgba(0,0,0,.2)"; ctx.fillRect(-w/2, -h, 3, h);
+    ctx.fillStyle = T.belt;
+    for(let y=-h+6; y<-6; y+=9) ctx.fillRect(-w/2, y, w, 3);   // соломенная обмотка
+    // мишень
+    ctx.fillStyle = "#c1272d"; ctx.beginPath(); ctx.arc(0, -h+13, 6, 0, 7); ctx.fill();
+    ctx.fillStyle = "#f7f4ec"; ctx.beginPath(); ctx.arc(0, -h+13, 3, 0, 7); ctx.fill();
+    ctx.fillStyle = "#c1272d"; ctx.beginPath(); ctx.arc(0, -h+13, 1.4, 0, 7); ctx.fill();
+    ctx.restore();
+    if(!e.dying){
+      const hp = Math.max(0, e.hp/e.maxhp);
+      ctx.fillStyle="rgba(0,0,0,.5)"; ctx.fillRect(e.x-10, e.y-h-10, 20, 3);
+      ctx.fillStyle= hp>0.5?"#8ee06a":(hp>0.25?"#e8b647":"#c1272d");
+      ctx.fillRect(e.x-10, e.y-h-10, 20*hp, 3);
+    }
+  } else {
+    let pose = "idle", ph = 0;
+    if(e.dying) pose = "down";
+    else if(e.st==="attack"){
+      pose = (e.type==="kabe" || e.type==="sensei") ? "kick" : "punch";
+      ph = e.stT/0.55;
+    }
+    else if(e.st==="guard") pose = "block";
+    else if(e.st==="hurt" || e.hurt>0) pose = "hurt";
+    else if(e.st==="walk") pose = "walk";
+    let gi = T.gi;
+    if(e.type==="sensei" && e.phase>1) gi = e.phase===2 ? "#3b2530" : "#4a1d20";
+    if(e.hurt>0 && Math.floor(G.t*30)%2===0) gi = "#ffffff";
+    fighter(e.x, e.y, e.z, {
+      facing:e.facing, pose, ph, frame:e.anim, gi, sh:"#9aa0ad",
+      belt:T.belt, stripe: e.type==="sensei"?"#e8b647":null, scale:e.big, skin:"#d9a97e",
+      hair: e.boss?"#0e0e12":"#2b2018", band: e.boss?1:0
+    });
+    // мини-полоска здоровья у обычных
+    if(!e.boss && !e.dying){
+      const w = 18*e.big, hp = Math.max(0,e.hp/e.maxhp);
+      ctx.fillStyle="rgba(0,0,0,.5)"; ctx.fillRect(e.x-w/2, e.y-52*e.big, w, 3);
+      ctx.fillStyle= hp>0.5?"#8ee06a":(hp>0.25?"#e8b647":"#c1272d");
+      ctx.fillRect(e.x-w/2, e.y-52*e.big, w*hp, 3);
+    }
+  }
+}
+
+/* HUD */
+
+/* ===== src/render/hud.js ===== */
+// Верхняя панель: имя, пояс, здоровье, шкала духа, жизни, полоса босса.
+function drawHUD(){
+  ctx.fillStyle = "rgba(10,12,20,.72)"; ctx.fillRect(0,0,W,34);
+  ctx.fillStyle = "#c1272d"; ctx.fillRect(0,34,W,1);
+
+  // имя и пояс
+  mono("САША", 8, 13, 9, "#f2ede2");
+  const B = BELTS[G.beltIdx];
+  ctx.fillStyle = B.c; ctx.fillRect(8, 17, 46, 6);
+  if(B.s){ ctx.fillStyle = B.s; ctx.fillRect(8, 19.5, 46, 2); }
+  ctx.strokeStyle = "rgba(0,0,0,.6)"; ctx.lineWidth = 1; ctx.strokeRect(8.5, 17.5, 45, 5);
+  mono(B.kyu, 8, 31, 7, "#8b95ad");
+
+  // HP
+  const hx = 64;
+  mono("ЖИЗНЬ", hx, 11, 7, "#8b95ad");
+  ctx.fillStyle = "#2a1416"; ctx.fillRect(hx, 14, 120, 8);
+  const hp = Math.max(0,P.hp/P.maxhp);
+  ctx.fillStyle = hp>0.5?"#8ee06a":(hp>0.25?"#e8b647":"#c1272d");
+  ctx.fillRect(hx, 14, 120*hp, 8);
+  ctx.strokeStyle="#000"; ctx.strokeRect(hx+0.5, 14.5, 119, 7);
+
+  // дух
+  mono("ДУХ", hx, 31, 7, "#8b95ad");
+  ctx.fillStyle = "#141c2c"; ctx.fillRect(hx+22, 25, 98, 5);
+  ctx.fillStyle = P.spirit>=100 ? (Math.floor(G.t*8)%2?"#fff":"#5b55c4") : "#2f6fd0";
+  ctx.fillRect(hx+22, 25, 98*(P.spirit/100), 5);
+
+  // жизни
+  for(let i=0;i<G.lives;i++){
+    const x = 196+i*13;
+    ctx.fillStyle="#f7f4ec"; ctx.fillRect(x, 14, 9, 9);
+    ctx.fillStyle="#c1272d"; ctx.fillRect(x, 20, 9, 2);
+  }
+
+  // уровень
+  mono("УРОВЕНЬ "+(G.lvl+1)+"/"+LEVELS.length, W-8, 12, 8, "#8b95ad", "right");
+  txt(LEVELS[G.lvl].name, W-8, 26, 10, "#f2ede2", "right");
+
+  // босс
+  const boss = G.enemies.find(e=>e.boss && !e.dying);
+  if(boss){
+    ctx.fillStyle="rgba(10,12,20,.7)"; ctx.fillRect(90,40,300,16);
+    mono(boss.name, 240, 47, 7, "#e8b647", "center");
+    ctx.fillStyle="#2a1416"; ctx.fillRect(100,49,280,4);
+    ctx.fillStyle="#c1272d"; ctx.fillRect(100,49,280*Math.max(0,boss.hp/boss.maxhp),4);
+  }
+
+  if(G.msgT>0 && G.msg){
+    ctx.globalAlpha = Math.min(1, G.msgT*2);
+    txt(G.msg, 240, 92, 16, "#e8b647", "center");
+    ctx.globalAlpha = 1;
+  }
+}
+
+/* ===== src/render/screens.js ===== */
+// Экраны: заставка уровня, вручение пояса, поражение, пауза, титул, финал.
+function drawIntro(){
+  panel(0.86);
+  const L = LEVELS[G.lvl];
+  ctx.font = 'bold 46px "Yu Mincho","MS Mincho",serif'; ctx.textAlign="center";
+  ctx.fillStyle = "rgba(193,39,45,.85)"; ctx.fillText(L.jp, 240, 108);
+  mono("УРОВЕНЬ "+(G.lvl+1), 240, 138, 9, "#8b95ad", "center");
+  txt(L.name, 240, 160, 18, "#f2ede2", "center");
+  ctx.fillStyle="#c1272d"; ctx.fillRect(180,170,120,1);
+  mono(L.tip, 240, 190, 8, "#c8d0e2", "center");
+  const B = BELTS[G.beltIdx];
+  ctx.fillStyle=B.c; ctx.fillRect(200,204,80,7); if(B.s){ ctx.fillStyle=B.s; ctx.fillRect(200,207,80,2); }
+  mono("твой пояс: "+B.n.toLowerCase(), 240, 224, 7, "#8b95ad", "center");
+  if(Math.floor(G.t*2)%2) mono("ENTER — НАЧАТЬ", 240, 246, 8, "#e8b647", "center");
+}
+function drawBelt(){
+  panel(0.9);
+  const B = BELTS[G.beltIdx+1] || BELTS[BELTS.length-1];
+  if(logo.ok){ ctx.globalAlpha=.18; ctx.drawImage(LOGO, 170, 60, 140, 131); ctx.globalAlpha=1; }
+  mono("УРОВЕНЬ ПРОЙДЕН", 240, 44, 8, "#8b95ad", "center");
+  txt("НОВЫЙ ПОЯС", 240, 68, 18, "#f2ede2", "center");
+
+  // церемония: Саша с поклоном
+  fighter(150, 200, 0, { facing:1, pose:"block", frame:0, gi:"#f7f4ec", belt:B.c, stripe:B.s, emblem:1, band:1 });
+  fighter(330, 200, 0, { facing:-1, pose:"idle", frame:G.t*2, gi:"#2b2f3d", sh:"#1c2029", belt:"#15151c", stripe:"#e8b647", skin:"#d9a97e", hair:"#0e0e12" });
+
+  // сам пояс
+  const w = 150 * Math.min(1, G.screenT/0.7);
+  ctx.fillStyle = B.c; ctx.fillRect(240-w/2, 116, w, 14);
+  if(B.s){ ctx.fillStyle = B.s; ctx.fillRect(240-w/2, 121, w, 4); }
+  ctx.strokeStyle="rgba(0,0,0,.6)"; ctx.strokeRect(240-w/2+0.5, 116.5, w-1, 13);
+  if(G.screenT > 0.7){
+    txt(B.n.toUpperCase(), 240, 148, 11, "#f2ede2", "center");
+    mono(B.kyu, 240, 162, 9, "#e8b647", "center");
+  }
+  if(G.screenT > 1.1){
+    ctx.font = 'bold 30px "Yu Mincho",serif'; ctx.textAlign="center";
+    ctx.fillStyle="rgba(91,85,196,"+(0.6+0.4*Math.sin(G.t*4))+")"; ctx.fillText("押忍", 240, 240);
+    mono("ОСУ!", 240, 254, 8, "#8b95ad", "center");
+  }
+  if(G.screenT > 1.4 && Math.floor(G.t*2)%2) mono("ENTER — ДАЛЬШЕ", 400, 20, 8, "#e8b647", "center");
+}
+function drawGameOver(){
+  panel(0.88);
+  ctx.font = 'bold 40px "Yu Mincho",serif'; ctx.textAlign="center";
+  ctx.fillStyle="rgba(193,39,45,.8)"; ctx.fillText("再挑戦", 240, 100);
+  txt("ПОРАЖЕНИЕ — ЧАСТЬ ПУТИ", 240, 138, 14, "#f2ede2", "center");
+  mono("Поднимись и попробуй снова. Уровень "+(G.lvl+1), 240, 158, 8, "#8b95ad", "center");
+  fighter(240, 210, 0, { facing:1, pose:"down", belt:BELTS[G.beltIdx].c, stripe:BELTS[G.beltIdx].s });
+  if(G.screenT>0.8 && Math.floor(G.t*2)%2) mono("ENTER — ЗАНОВО", 240, 240, 9, "#e8b647", "center");
+}
+function drawPause(){
+  panel(0.7);
+  txt("ПАУЗА", 240, 130, 20, "#f2ede2", "center");
+  mono("P — продолжить", 240, 152, 8, "#8b95ad", "center");
+}
+function drawTitle(){
+  const g = ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,"#232a4a"); g.addColorStop(1,"#0d1017");
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  ctx.save(); ctx.translate(240,104);
+  ctx.globalAlpha=.14; ctx.strokeStyle="#5b55c4"; ctx.lineWidth=10;
+  ctx.beginPath(); ctx.arc(0,0,78,0,7); ctx.stroke();
+  ctx.globalAlpha=1; ctx.restore();
+
+  if(logo.ok) ctx.drawImage(LOGO, 190, 26, 100, 94);
+  else { ctx.font='bold 46px "Yu Mincho",serif'; ctx.textAlign="center"; ctx.fillStyle="#5b55c4"; ctx.fillText("極真", 240, 92); }
+
+  txt("САША — ПУТЬ КИОКУШИН", 240, 142, 17, "#f2ede2", "center");
+  ctx.fillStyle="#5b55c4"; ctx.fillRect(150,150,180,1);
+  mono("КАЙТАКА · 8 УРОВНЕЙ · ДО ЧЁРНОГО ПОЯСА", 240, 165, 8, "#8b95ad", "center");
+
+  fighter(72, 232, 0, { facing:1, pose:"walk", frame:G.t*5, gi:"#f7f4ec", belt:"#2f6fd0", stripe:"#f2c832", emblem:1, band:1, scale:1.2 });
+  fighter(408, 232, 0, { facing:-1, pose:"block", frame:0, gi:"#2b2f3d", sh:"#1c2029", belt:"#15151c", stripe:"#e8b647", skin:"#d9a97e", hair:"#0e0e12", scale:1.2 });
+
+  if(G.unlocked>1){
+    mono("◀  УРОВЕНЬ "+(G.selLevel+1)+" — "+LEVELS[G.selLevel].name+"  ▶", 240, 198, 9, "#c8d0e2", "center");
+  } else {
+    mono("УРОВЕНЬ 1 — ДОДЗЁ", 240, 198, 9, "#c8d0e2", "center");
+  }
+  if(Math.floor(G.t*2)%2) mono("ENTER ИЛИ КАСАНИЕ ЭКРАНА — НАЧАТЬ", 240, 220, 9, "#e8b647", "center");
+  mono("J цуки · K гери · L блок · ПРОБЕЛ киай", 240, 252, 8, "#5e6a7d", "center");
+}
+function drawWin(){
+  const g = ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,"#141824"); g.addColorStop(1,"#000");
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  for(let i=0;i<40;i++){
+    const x=(i*127+G.t*20*(i%5+1))%W, y=(i*61)%H;
+    ctx.fillStyle="rgba(232,182,71,"+(0.2+0.5*Math.abs(Math.sin(G.t*2+i)))+")"; ctx.fillRect(x,y,2,2);
+  }
+  ctx.font='bold 44px "Yu Mincho",serif'; ctx.textAlign="center";
+  ctx.fillStyle="#e8b647"; ctx.fillText("黒帯", 240, 74);
+  if(logo.ok){ ctx.globalAlpha=.2; ctx.drawImage(LOGO, 185, 88, 110, 103); ctx.globalAlpha=1; }
+  txt("ЧЁРНЫЙ ПОЯС · 1 ДАН", 240, 108, 17, "#f2ede2", "center");
+  ctx.fillStyle="#15151c"; ctx.fillRect(150,120,180,14);
+  ctx.fillStyle="#e8b647"; ctx.fillRect(150,125,180,4);
+  mono("САША ПРОШЁЛ ВСЕ ВОСЕМЬ УРОВНЕЙ", 240, 152, 8, "#8b95ad", "center");
+  fighter(240, 236, 0, { facing:1, pose:"kiai", frame:0, gi:"#f7f4ec", belt:"#15151c", stripe:"#e8b647", emblem:1, band:1, scale:1.4 });
+  ctx.font='bold 18px "Yu Mincho",serif'; ctx.fillStyle="#c1272d"; ctx.fillText("押忍", 240, 176);
+  if(Math.floor(G.t*2)%2) mono("ENTER — В МЕНЮ", 240, 258, 8, "#e8b647", "center");
+}
+
+/* ===== src/game.js ===== */
+// Главный цикл: обновление логики и отрисовка кадра.
+
+
+
+
+
+
+
+
+
+
+
+let last = 0;
+function startLoop(){
+  last = performance.now();
+  requestAnimationFrame(loop);
+}
+
+function loop(now){
+  // Ограничение шага: после сворачивания вкладки dt был бы огромным
+  // и объекты «телепортировались» бы сквозь друг друга.
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+
+  G.t += dt;
+  G.screenT += dt;
+  if(G.shake > 0) G.shake = Math.max(0, G.shake - dt * 3);
+  if(G.flash > 0) G.flash = Math.max(0, G.flash - dt * 3);
+  if(G.msgT > 0) G.msgT -= dt;
+
+  try {
+    update(dt);
+    render();
+  } catch(err){
+    // Ошибка в одном кадре не должна убивать игру целиком.
+    console.error("Ошибка в кадре:", err);
+  }
+
+  requestAnimationFrame(loop);
+}
+
+function update(dt){
+  switch(G.state){
+    case "title":    return updateTitle();
+    case "intro":    return updateIntro();
+    case "belt":     return updateBelt();
+    case "gameover": return updateGameOver();
+    case "win":      return updateWin();
+    case "pause":    return updatePause();
+    case "play":     return updatePlay(dt);
+  }
+}
+
+function updateTitle(){
+  if(G.unlocked > 1){
+    if(took("left"))  G.selLevel = (G.selLevel + G.unlocked - 1) % G.unlocked;
+    if(took("right")) G.selLevel = (G.selLevel + 1) % G.unlocked;
+  }
+  if(took("enter")) startLevel(G.selLevel);
+}
+
+function updateIntro(){
+  if((G.screenT > 1.4 && took("enter")) || G.screenT > 5){
+    G.state = "play";
+    spawnWave();
+  }
+}
+
+function updateBelt(){
+  if(G.screenT > 1.2 && took("enter")){
+    if(G.lvl + 1 >= LEVELS.length){
+      G.state = "win";
+      G.screenT = 0;
+    } else {
+      G.unlocked = Math.max(G.unlocked, G.lvl + 2);
+      saveProgress();
+      startLevel(G.lvl + 1);
+    }
+  }
+}
+
+function updateGameOver(){
+  if(G.screenT > 0.8 && took("enter")) startLevel(G.lvl);
+}
+
+function updateWin(){
+  if(took("enter")){ G.state = "title"; G.screenT = 0; }
+}
+
+function updatePause(){
+  if(took("pause") || took("enter")) G.state = "play";
+}
+
+function updatePlay(dt){
+  if(took("pause")){ G.state = "pause"; return; }
+
+  updatePlayer(dt);
+  updateEnemies(dt);
+  updateShots(dt);
+  updateItems(dt);
+
+  for(let i = G.fx.length - 1; i >= 0; i--){
+    const f = G.fx[i];
+    f.t += dt;
+    f.x += f.vx * dt;
+    f.y += f.vy * dt;
+    if(f.t > f.life) G.fx.splice(i, 1);
+  }
+
+  // Волна зачищена?
+  const alive = G.enemies.filter(e => !e.dying).length;
+  if(alive === 0 && !G.cleared){
+    G.cleared = true;
+    if(G.bossFight){
+      G.state = "belt";
+      G.screenT = 0;
+      S.belt();
+      G.unlocked = Math.max(G.unlocked, G.lvl + 2);
+      saveProgress();
+    } else {
+      G.msg = "ВПЕРЁД →";
+      G.msgT = 1.6;
+    }
+  }
+
+  advanceWave(dt);
+}
+
+function render(){
+  ctx.save();
+
+  if(G.shake > 0){
+    ctx.translate((Math.random() - 0.5) * G.shake * 5, (Math.random() - 0.5) * G.shake * 4);
+  }
+
+  if(G.state === "title"){
+    drawTitle();
+  } else if(G.state === "win"){
+    drawWin();
+  } else {
+    drawBG(LEVELS[G.lvl].theme);
+    drawWorld();
+    drawHUD();
+    if(G.state === "intro")    drawIntro();
+    if(G.state === "belt")     drawBelt();
+    if(G.state === "gameover") drawGameOver();
+    if(G.state === "pause")    drawPause();
+  }
+
+  if(G.flash > 0){
+    ctx.fillStyle = "rgba(255,255,255," + (G.flash * 0.35) + ")";
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  ctx.restore();
+}
+
+/* ===== src/main.js ===== */
+// Точка входа. Подключает ввод, кнопку звука и запускает игровой цикл.
+
+
+
+
+
+loadProgress();
+initInput(cv);
+
+const soundBtn = document.getElementById("sound");
+if(soundBtn){
+  soundBtn.onclick = () => {
+    soundBtn.textContent = "ЗВУК: " + (toggleSound() ? "ВКЛ" : "ВЫКЛ");
+  };
+}
+
+startLoop();
+
+})();
+</script>
+</body>
+</html>

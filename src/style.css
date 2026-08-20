@@ -1,0 +1,97 @@
+/* Оформление страницы и интерфейса.
+   Цвета продублированы из scene/palette.js — правишь там, правь и здесь. */
+
+:root{
+  --kyoku:#c1272d;   /* красный киокушинкай */
+  --club:#3f3a8c;    /* индиго КАЙТАКА */
+  --gold:#e8b647;
+  --gi:#f2ede2;
+  --night:#141824;
+  --night-2:#1d2333;
+}
+
+*{ box-sizing:border-box; margin:0; padding:0; }
+
+html, body{
+  height:100%;
+  overflow:hidden;
+  background:var(--night);
+  color:var(--gi);
+  font-family:"Segoe UI", system-ui, sans-serif;
+  /* На телефоне долгий тап по игре не должен выделять текст или звать меню */
+  -webkit-user-select:none; user-select:none;
+  -webkit-tap-highlight-color:transparent;
+  touch-action:none;
+}
+
+#view{ display:block; width:100%; height:100%; }
+
+/* Слой интерфейса. Сам слой кликов не ловит — иначе он перехватывал бы
+   всё подряд поверх игры. Ловят только кнопки, им это возвращено. */
+#ui{ position:fixed; inset:0; pointer-events:none; }
+#ui button{ pointer-events:auto; }
+
+#hud{ position:absolute; top:16px; left:16px; }
+
+#belt{
+  display:flex; align-items:center; gap:10px;
+  background:rgba(20,24,36,.72);
+  border:1px solid rgba(232,182,71,.35);
+  border-radius:6px;
+  padding:8px 14px 8px 10px;
+  font-size:14px; letter-spacing:.04em;
+  backdrop-filter:blur(6px);
+}
+#belt-swatch{
+  width:26px; height:12px; border-radius:2px;
+  border:1px solid rgba(0,0,0,.5);
+  box-shadow:0 1px 3px rgba(0,0,0,.5);
+}
+#belt-rank{ color:var(--gold); font-weight:700; }
+
+#hint{
+  position:absolute; bottom:22px; left:50%; transform:translateX(-50%);
+  font-size:13px; letter-spacing:.08em; opacity:.5; white-space:nowrap;
+}
+
+/* Экранные кнопки — только для тача. На компьютере есть клавиатура. */
+#pad{ position:absolute; left:20px; bottom:20px; display:none; }
+@media (pointer:coarse){
+  #pad{ display:block; }
+  #hint{ display:none; }
+}
+
+.dpad{
+  display:grid;
+  grid-template-columns:repeat(3, 54px);
+  grid-template-rows:repeat(3, 54px);
+  gap:5px;
+}
+.k{
+  background:rgba(63,58,140,.55);
+  border:1px solid rgba(232,182,71,.4);
+  border-radius:8px;
+  color:var(--gi);
+  font-size:19px;
+  cursor:pointer;
+}
+.k:active{ background:var(--kyoku); }
+
+/* Экран загрузки */
+#loading{
+  position:fixed; inset:0;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:10px;
+  background:var(--night);
+  transition:opacity .5s ease;
+}
+#loading.hidden{ opacity:0; pointer-events:none; }
+
+#loading .kanji{
+  font-family:"Yu Mincho", "MS Mincho", serif;
+  font-size:76px;
+  color:var(--kyoku);
+  line-height:1;
+}
+.load-title{ font-size:22px; letter-spacing:.34em; margin-top:6px; }
+.load-sub{ font-size:12px; letter-spacing:.2em; opacity:.45; }

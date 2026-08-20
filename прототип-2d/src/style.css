@@ -1,0 +1,66 @@
+:root{
+  --night:#141824;
+  --night-2:#1d2333;
+  --tatami:#2f5d50;
+  --kyoku:#c1272d;
+  --club:#3f3a8c;
+  --gi:#f2ede2;
+  --gold:#e8b647;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{
+  background:
+    radial-gradient(120% 80% at 50% -10%, #26304a 0%, var(--night) 60%, #0d1017 100%);
+  color:var(--gi);
+  font-family:system-ui,"Segoe UI",Roboto,sans-serif;
+  display:flex;flex-direction:column;align-items:center;
+  padding:14px 10px 20px;gap:10px;
+  overflow-x:hidden;
+}
+header{display:flex;align-items:center;gap:12px;width:100%;max-width:920px}
+.kanji{
+  font-size:30px;line-height:1;color:#6b64d8;
+  text-shadow:0 0 14px rgba(63,58,140,.7);
+  font-family:"Yu Mincho","MS Mincho",serif;
+}
+h1{
+  font-family:"Arial Black","Arial Bold",Impact,sans-serif;
+  font-size:15px;letter-spacing:.22em;margin:0;font-weight:900;
+}
+h1 small{display:block;font-size:9px;letter-spacing:.34em;color:#8b95ad;font-weight:400;margin-top:3px}
+#sound{
+  margin-left:auto;background:none;border:1px solid #3b4560;color:#9aa5bd;
+  font-size:11px;letter-spacing:.12em;padding:7px 12px;border-radius:2px;cursor:pointer;
+  font-family:inherit;
+}
+#sound:hover{border-color:var(--gold);color:var(--gold)}
+.frame{
+  width:100%;max-width:920px;border:1px solid #333d57;
+  box-shadow:0 0 0 6px #0d1017, 0 18px 50px rgba(0,0,0,.6);
+  background:#000;line-height:0;position:relative;
+}
+canvas{
+  width:100%;height:auto;display:block;
+  image-rendering:pixelated;image-rendering:crisp-edges;
+  touch-action:none;
+}
+.pad{width:100%;max-width:920px;display:flex;justify-content:space-between;gap:14px;user-select:none}
+.dpad{display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(3,44px);gap:4px}
+.acts{display:grid;grid-template-columns:repeat(2,74px);grid-template-rows:repeat(2,44px);gap:6px;align-self:end}
+button.k{
+  background:#1d2333;border:1px solid #3b4560;color:#c8d0e2;border-radius:3px;
+  font-size:11px;font-weight:700;letter-spacing:.06em;cursor:pointer;font-family:inherit;
+}
+button.k:active,button.k.on{background:var(--club);border-color:var(--club);color:#fff}
+.dpad .sp{visibility:hidden}
+.keys{
+  width:100%;max-width:920px;font-size:11px;color:#78829a;letter-spacing:.05em;
+  display:flex;flex-wrap:wrap;gap:4px 18px;line-height:1.6;
+}
+.keys b{color:#c8d0e2;font-weight:700}
+@media (max-width:700px){
+  h1{font-size:12px}
+  .dpad{grid-template-columns:repeat(3,46px)}
+  .acts{grid-template-columns:repeat(2,66px)}
+}

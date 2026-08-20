@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>ПУТЬ КАЙТАКА</title>
+<link rel="stylesheet" href="src/style.css">
+
+<!--
+  Карта модулей: превращает короткое имя "three" в путь к файлу в vendor/.
+  Благодаря ей файлы three.js подключаются как есть, без npm и без сборщика,
+  а внутренние импорты вида "three/addons/..." тоже находят свои файлы.
+-->
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three.module.js",
+    "three/addons/": "./vendor/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+
+<canvas id="view"></canvas>
+
+<!-- Интерфейс — обычный HTML поверх 3D, а не рисование внутри canvas -->
+<div id="ui">
+  <div id="hud">
+    <div id="belt">
+      <span id="belt-swatch"></span>
+      <span id="belt-name">—</span>
+      <b id="belt-rank"></b>
+    </div>
+  </div>
+
+  <div id="hint">Стрелки или WASD — движение</div>
+
+  <div id="pad">
+    <div class="dpad">
+      <span></span><button class="k" data-k="up">▲</button><span></span>
+      <button class="k" data-k="left">◀</button><span></span><button class="k" data-k="right">▶</button>
+      <span></span><button class="k" data-k="down">▼</button><span></span>
+    </div>
+  </div>
+</div>
+
+<div id="loading">
+  <div class="kanji">鷹</div>
+  <div class="load-title">ПУТЬ КАЙТАКА</div>
+  <div class="load-sub">загрузка…</div>
+</div>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
