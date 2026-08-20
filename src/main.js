@@ -58,6 +58,11 @@ async function begin(p){
   const SPEED = 5.2;
   const pos = hero.object.position;
 
+  // Персонаж смотрит вдоль своей оси +Z. Чтобы развернуть его вправо
+  // (в сторону +X мира), нужен угол +90°, влево — минус 90°.
+  // Ноль и 180° разворачивали бы его к камере и спиной к игроку.
+  let faceTarget = Math.PI / 2;
+
   onUpdate(dt => {
     const dx = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
     const dz = (keys.down  ? 1 : 0) - (keys.up   ? 1 : 0);
@@ -69,8 +74,15 @@ async function begin(p){
       const n = (dx && dz) ? Math.SQRT1_2 : 1;
       pos.x += dx * SPEED * n * dt;
       pos.z += dz * SPEED * n * dt;
-      if(dx) hero.object.rotation.y = dx > 0 ? 0 : Math.PI;
+      if(dx) faceTarget = dx > 0 ? Math.PI / 2 : -Math.PI / 2;
     }
+
+    // Плавный разворот по кратчайшей дуге. Мгновенный поворот на 180°
+    // читается как подмена кадра, а не как движение.
+    let d = faceTarget - hero.object.rotation.y;
+    while(d >  Math.PI) d -= Math.PI * 2;
+    while(d < -Math.PI) d += Math.PI * 2;
+    hero.object.rotation.y += d * (1 - Math.exp(-14 * dt));
 
     hero.update(dt, moving);
 

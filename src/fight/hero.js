@@ -8,6 +8,7 @@
 //   hero.real            — true, если это модель, а не заглушка
 
 import { loadCharacter } from "./character.js";
+import { makeRig, poseIdle, poseWalk } from "./procedural.js";
 import { makePlaceholder, animateWalk, setBeltColor } from "./placeholder.js";
 
 // Файлы пробуются по порядку. Как только в assets/models/ появятся boy.fbx
@@ -31,18 +32,33 @@ export async function makeHero(who, beltColor){
 }
 
 function realHero(ch, url){
+  const rig = makeRig(ch.root);
   let t = 0;
+
+  // Настоящие клипы главнее: как только в assets/anims/ появятся файлы,
+  // они вытеснят анимацию кодом. До этого двигаем костями сами.
+  const hasClips = !!(ch.actions.walk || ch.actions.idle);
+
   return {
     object: ch.root,
     real: true,
     source: url,
+    rigged: rig.ok,
+    mode: hasClips ? "клипы" : (rig.ok ? "код" : "статуя"),
+
     update(dt, moving){
-      ch.update(dt);
-      // Клипы ходьбы и стойки появятся вместе с файлами анимаций.
-      // Пока их нет, персонаж стоит в позе, в которой приехал.
-      if(ch.actions.walk || ch.actions.idle) ch.play(moving ? "walk" : "idle");
-      t += dt;
+      if(hasClips){
+        ch.update(dt);
+        ch.play(moving ? "walk" : "idle");
+        return;
+      }
+      if(!rig.ok) return;
+      // Ходьба идёт по своему счётчику, стойка — по общему времени,
+      // иначе дыхание сбивалось бы при каждой остановке.
+      t += dt * (moving ? 8.5 : 1);
+      moving ? poseWalk(rig, t) : poseIdle(rig, t);
     },
+
     setBelt(){
       // У настоящей модели пояс — часть меша. Перекраска появится,
       // когда приедут модели с поясом отдельным материалом.
