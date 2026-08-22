@@ -34,6 +34,16 @@ export async function makeHero(who, beltColor){
   for(const url of MODELS[who] || []){
     try {
       const ch = await loadCharacter(url);
+
+      // Модель без скелета не умеет двигаться. Пустить её в игру хуже, чем
+      // не пустить: боец замрёт в позе, в которой приехал, и поедет по
+      // татами целиком. Генераторы отдают такие модели, когда шаг с ригом
+      // не выполнен, — берём следующую из списка.
+      if(!ch.rigged){
+        console.warn("Модель без скелета, пропускаю:", url);
+        continue;
+      }
+
       const clips = await loadClips(ch, CLIPS);
       return realHero(ch, url, clips);
     } catch(e){

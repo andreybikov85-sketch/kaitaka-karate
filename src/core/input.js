@@ -23,8 +23,21 @@ const MAP = {
 export const keys = {};
 const pressed = new Set();
 
+// Игрок сейчас набирает текст?
+//
+// Пока курсор в поле ввода, игра не должна трогать клавиатуру вообще.
+// Иначе поле имени «тупит»: в карте управления заняты буквенные клавиши
+// и пробел, а preventDefault не даёт символу дойти до поля. В русской
+// раскладке «С» сидит на KeyC, который занят блоком, — и буква просто
+// не печатается.
+function typing(){
+  const el = document.activeElement;
+  return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+}
+
 export function initInput(){
   addEventListener("keydown", e => {
+    if(typing()) return;
     const k = MAP[e.code];
     if(!k) return;
     e.preventDefault();
@@ -33,6 +46,7 @@ export function initInput(){
   });
 
   addEventListener("keyup", e => {
+    if(typing()) return;
     const k = MAP[e.code];
     if(!k) return;
     e.preventDefault();
