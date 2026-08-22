@@ -94,10 +94,8 @@ async function begin(p){
     if(took("view"))  showView(toggleCameraMode());
     if(took("mode"))  showMode(hero.toggleMode());
 
-    // Скорость берём у героя каждый кадр: она задаётся режимом и
-    // согласована с его клипом движения. Разгонишь здесь — ноги начнут
-    // перебирать отдельно от тела.
-    const SPEED = hero.speed;
+    // Блок держится, пока нажата кнопка.
+    hero.setBlock(keys.block);
 
     // Стрелки задают направление относительно ЭКРАНА, а не мира: вверх —
     // это всегда «от игрока вглубь», в каком бы виде мы ни были. Иначе при
@@ -110,16 +108,27 @@ async function begin(p){
     let mz = a.fz * fwd + a.rz * side;
     const moving = !hero.busy && !!(mx || mz);
 
+    // Идёт ли боец спиной вперёд.
+    let backward = false;
+
     if(moving){
       // По диагонали скорость не должна складываться — иначе наискосок
       // персонаж идёт в полтора раза быстрее, чем прямо.
       const len = Math.hypot(mx, mz);
       mx /= len; mz /= len;
+
+      // Куда смотреть. В кумитэ взгляд заперт: от противника не
+      // отворачиваются, вперёд идут лицом, назад пятятся. В тренировке
+      // и в виде из-за спины боец поворачивается по ходу движения.
+      if(a.turnToMove)          faceTarget = Math.atan2(mx, mz);
+      else if(!hero.mode.lock && side) faceTarget = side > 0 ? Math.PI / 2 : -Math.PI / 2;
+
+      // Движение против взгляда — это отход, у него свой цикл и своя скорость.
+      backward = (Math.sin(faceTarget) * mx + Math.cos(faceTarget) * mz) < -0.1;
+
+      const SPEED = hero.speedFor(backward);
       pos.x += mx * SPEED * dt;
       pos.z += mz * SPEED * dt;
-
-      if(a.turnToMove) faceTarget = Math.atan2(mx, mz);
-      else if(side)    faceTarget = side > 0 ? Math.PI / 2 : -Math.PI / 2;
     }
 
     // Плавный разворот по кратчайшей дуге. Мгновенный поворот на 180°
@@ -129,7 +138,7 @@ async function begin(p){
     while(d < -Math.PI) d += Math.PI * 2;
     hero.object.rotation.y += d * (1 - Math.exp(-14 * dt));
 
-    hero.update(dt, moving);
+    hero.update(dt, moving, backward);
 
     // Границы татами.
     pos.x = Math.max(-halfLen, Math.min(halfLen, pos.x));

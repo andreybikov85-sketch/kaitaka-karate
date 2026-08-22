@@ -72,6 +72,7 @@ export class Character {
     this.actions = {};
     this.current = null;
     this.once = null;          // разовая анимация: удар, падение
+    this.held = null;          // удерживаемая анимация: блок
     this.restore = false;      // нужно ли вернуть цикл после разовой
     this.height = height;
 
@@ -94,8 +95,9 @@ export class Character {
     return n > 0;
   }
 
-  // Занят разовой анимацией — движение и новые удары пока запрещены.
-  get busy(){ return !!this.once; }
+  // Занят — движение и новые удары запрещены. Блок тоже занимает бойца:
+  // держишь защиту — стоишь на месте.
+  get busy(){ return !!this.once || !!this.held; }
 
   // Насколько разовая анимация доиграна, 0..1. Нужно для связок: следующий
   // удар разрешено начинать, не дожидаясь конца предыдущего.
@@ -188,7 +190,42 @@ export class Character {
     return lo;
   }
 
+  // Удерживаемая анимация: блок.
+  //
+  // Клип блока — это движение «поставил и убрал». Чтобы защита держалась,
+  // анимация доводится до момента закрытия и там замирает, а после
+  // отпускания кнопки доигрывает возврат в стойку.
+  playHold(name, guard = 0.3, fade = 0.08){
+    const a = this.actions[name];
+    if(!a || this.held || this.once) return false;
+    a.reset();
+    a.setLoop(THREE.LoopOnce, 1);
+    a.clampWhenFinished = true;
+    a.paused = false;
+    a.fadeIn(fade).play();
+    if(this.current) this.current.fadeOut(fade);
+    this.held = { action: a, guard };
+    this.restore = true;
+    return true;
+  }
+
+  // Отпустить блок — остаток клипа доигрывается как разовая анимация.
+  releaseHold(){
+    if(!this.held) return;
+    const a = this.held.action;
+    a.paused = false;
+    this.once = a;
+    this.held = null;
+  }
+
   update(dt){
+    // Держим защиту: доводим клип до момента закрытия и замираем.
+    if(this.held){
+      const a = this.held.action;
+      const stopAt = a.getClip().duration * this.held.guard;
+      if(!a.paused && a.time >= stopAt){ a.time = stopAt; a.paused = true; }
+    }
+
     this.mixer.update(dt);
 
     // Разовая закончилась — один раз возвращаем цикл, который шёл до неё.

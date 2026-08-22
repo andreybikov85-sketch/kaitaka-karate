@@ -15,7 +15,7 @@
 import { loadCharacter, loadClips } from "./character.js";
 import { makeRig, poseIdle, poseWalk } from "./procedural.js";
 import { makePlaceholder, animateWalk, setBeltColor } from "./placeholder.js";
-import { MOVES, LOOPS, MODES, DEFAULT_MODE, CHAIN_WINDOW, CANCEL_FROM } from "./moves.js";
+import { MOVES, LOOPS, MODES, DEFAULT_MODE, CHAIN_WINDOW, CANCEL_FROM, BACK_FACTOR } from "./moves.js";
 
 // Файлы клипов собираются из таблицы приёмов: имя приёма — имя файла.
 const CLIPS = {};
@@ -83,9 +83,12 @@ function realHero(ch, url, clips){
   // отдельно от тела и персонаж скользит.
   function applyMode(m){
     mode = MODES[m] || mode;
-    const a = ch.actions[mode.move];
-    const gs = LOOPS[mode.move]?.groundSpeed;
-    if(a && gs) a.timeScale = mode.speed / gs;
+    for(const [key, factor] of [["move", 1], ["back", BACK_FACTOR]]){
+      const name = mode[key];
+      const a = ch.actions[name];
+      const gs = LOOPS[name]?.groundSpeed;
+      if(a && gs) a.timeScale = (mode.speed * factor) / gs;
+    }
   }
   applyMode(DEFAULT_MODE);
 
@@ -126,7 +129,11 @@ function realHero(ch, url, clips){
     clips,
     anim: cycleFromClips ? "клипы" : (rig.ok ? "код" : "статуя"),
 
+    // Скорость отхода ниже: пятиться от противника не должно быть
+    // так же выгодно, как идти на него.
+    speedFor(backward){ return mode.speed * (backward ? BACK_FACTOR : 1); },
     get speed(){ return mode.speed; },
+    get blocking(){ return !!ch.held; },
     get mode(){ return mode; },
     get busy(){ return ch.busy; },
     get move(){ return active; },
@@ -144,7 +151,15 @@ function realHero(ch, url, clips){
 
     act(name){ return start(name); },
 
-    update(dt, moving){
+    // Блок держится, пока нажата кнопка. Вызывается каждый кадр.
+    setBlock(on){
+      const m = MOVES.block;
+      if(on && !ch.held && !ch.busy && ch.actions.block) ch.playHold("block", m.guard);
+      else if(!on && ch.held) ch.releaseHold();
+      return !!ch.held;
+    },
+
+    update(dt, moving, backward){
       sinceStrike += dt;
       ch.update(dt);
 
@@ -156,7 +171,10 @@ function realHero(ch, url, clips){
       if(ch.busy) return;
 
       if(cycleFromClips){
-        const loop = moving ? mode.move : mode.idle;
+        // Отход — отдельный цикл: боец пятится, не отворачиваясь
+        // от противника. Без него он разворачивался бы спиной к бою.
+        const walkName = (backward && ch.actions[mode.back]) ? mode.back : mode.move;
+        const loop = moving ? walkName : mode.idle;
         ch.play(loop);
         // Выравниваем посадку под стойку текущего клипа.
         inner.position.y = baseY + (groundFix[loop] || 0);
@@ -188,9 +206,12 @@ function boxHero(who, beltColor){
     speed: MODES[DEFAULT_MODE].speed,
     mode: MODES[DEFAULT_MODE],
     busy: false,
+    blocking: false,
     move: null,
+    speedFor(){ return MODES[DEFAULT_MODE].speed; },
     setMode(){ return MODES[DEFAULT_MODE]; },
     toggleMode(){ return MODES[DEFAULT_MODE]; },
+    setBlock(){ return false; },
     attack(){ return false; },
     act(){ return false; },
     update(dt, moving){

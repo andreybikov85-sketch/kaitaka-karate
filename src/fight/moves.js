@@ -27,9 +27,17 @@ export const MOVES = {
   kick:  { secs: 0.62, kind: "strike", limb: "RightFoot", chain: null,   jp: "маваси-гери" },
 
 
+  // Блок держится, пока нажата кнопка.
+  //
+  // guard — доля клипа, на которой защита закрыта. Замерено по подъёму
+  // кисти над тазом: рука идёт вверх до 24% клипа и держится примерно
+  // до 41%, дальше опускается. На этой доле анимация замирает, пока
+  // кнопка нажата, и доигрывается после отпускания.
+  block: { secs: 0.75, kind: "hold", guard: 0.30 },
+
   // Реакции. priority выше — прерывает то, что ниже.
   hit:   { secs: 0.38, kind: "react", priority: 2 },
-  down:  { secs: 0.90, kind: "react", priority: 3 }
+  down:  { secs: 1.60, kind: "react", priority: 3 }
 };
 
 // Циклы — то, что крутится, пока ничего не происходит.
@@ -41,8 +49,13 @@ export const MOVES = {
 export const LOOPS = {
   idle: {},
   walk: { groundSpeed: 1.02 },   // обычная ходьба
-  step: { groundSpeed: 0.55 }    // боевой подшаг: короче и осторожнее
+  step: { groundSpeed: 0.55 },   // боевой подшаг: короче и осторожнее
+  back: { groundSpeed: 0.44 }    // отход спиной, не отворачиваясь
 };
+
+// Отход медленнее наступления — так и в жизни, и так честнее в бою:
+// пятиться от противника не должно быть так же выгодно, как идти на него.
+export const BACK_FACTOR = 0.75;
 
 // ДВА РЕЖИМА ДВИЖЕНИЯ.
 //
@@ -53,9 +66,12 @@ export const LOOPS = {
 //   кумитэ     — боевой подшаг, короткий и осторожный, скорость ниже
 //
 // Режим задаётся уровнем и переключается на лету.
+// lock — держать взгляд, а не разворачиваться по ходу движения.
+// В кумитэ от противника не отворачиваются: вперёд идёшь лицом, назад
+// пятишься. В тренировке ходят свободно, как удобнее.
 export const MODES = {
-  training: { label: "тренировка", jp: "稽古", idle: "idle", move: "walk", speed: 2.2 },
-  kumite:   { label: "кумитэ",     jp: "組手", idle: "idle", move: "step", speed: 1.5 }
+  training: { label: "тренировка", jp: "稽古", idle: "idle", move: "walk", back: "back", speed: 2.2, lock: false },
+  kumite:   { label: "кумитэ",     jp: "組手", idle: "idle", move: "step", back: "back", speed: 1.5, lock: true  }
 };
 
 export const DEFAULT_MODE = "kumite";
