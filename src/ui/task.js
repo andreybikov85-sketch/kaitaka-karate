@@ -4,7 +4,7 @@
 
 const el = id => document.getElementById(id);
 
-export function makeTaskUI(level, heroName, onBegin){
+export function makeTaskUI(level, heroName, onBegin, faceUrl){
   const t = level.task;
   const count = level.targets.length;
 
@@ -27,6 +27,11 @@ export function makeTaskUI(level, heroName, onBegin){
     bars.appendChild(b);
     fills.push({ box: b, fill: b.querySelector(".bar-fill"), num: b.querySelector(".bar-num") });
   }
+
+  // Лицо сэнсэя снято с модели. Если снять не удалось, экран просто
+  // обходится без портрета — задание важнее картинки.
+  const faceEl = el("brief-face");
+  if(faceUrl){ faceEl.src = faceUrl; faceEl.hidden = false; }
 
   briefTx.innerHTML = t.brief
     .map(s => s.replace("{имя}", heroName))

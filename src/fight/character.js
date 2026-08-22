@@ -13,9 +13,17 @@ import { FBXLoader } from "three/addons/loaders/FBXLoader.js";
 const loader = new FBXLoader();
 const texLoader = new THREE.TextureLoader();
 
-// Рост персонажа в мире игры, в метрах. Мир строится в метрах:
+// Рост персонажей в мире игры, в метрах. Мир строится в метрах:
 // столбы на арене 2.4 м, татами размечен по метру.
-const TARGET_HEIGHT = 1.55;   // ребёнок девяти лет
+//
+// Генераторы отдают модели в своих единицах и своего масштаба, поэтому
+// рост задаём мы. Разница между взрослым и ребёнком должна читаться
+// с первого взгляда: сэнсэй заметно выше — это и есть половина того,
+// что делает его сэнсэем.
+export const HEIGHT = {
+  child:  1.42,   // ребёнок девяти лет
+  sensei: 1.78    // взрослый
+};
 
 function load(url){
   return new Promise((ok, fail) => loader.load(url, ok, undefined, fail));
@@ -218,6 +226,61 @@ export class Character {
     this.held = null;
   }
 
+  // Сколько метров в секунду проходит клип ходьбы.
+  //
+  // Меряется на самом персонаже, а не берётся из данных: шаг зависит от
+  // роста. Один и тот же клип у сэнсэя ростом 1.78 отрабатывает больше
+  // метров, чем у ребёнка ростом 1.42, и константа подошла бы только
+  // одному из них.
+  measureStride(name){
+    const a = this.actions[name];
+    if(!a) return 0;
+
+    const feet = [];
+    this.model.traverse(o => {
+      if(o.isBone && /(Left|Right)Foot$/.test(o.name.replace(/^mixamorig:?/, ""))) feet.push(o);
+    });
+    if(feet.length < 2) return 0;
+
+    const wasScale = a.timeScale;
+    a.timeScale = 1;
+    a.reset().play();
+    a.setEffectiveWeight(1);
+
+    const dur = a.getClip().duration, N = 120;
+    const v = new THREE.Vector3();
+    const rows = [];
+    let lo = Infinity, hi = -Infinity;
+    for(let i = 0; i < N; i++){
+      a.time = dur * i / (N - 1);
+      this.mixer.update(0);
+      this.root.updateMatrixWorld(true);
+      const row = [];
+      for(const f of feet){
+        f.getWorldPosition(v);
+        this.root.worldToLocal(v);
+        row.push({ y: v.y, z: v.z });
+        lo = Math.min(lo, v.y); hi = Math.max(hi, v.y);
+      }
+      rows.push(row);
+    }
+    a.stop();
+    a.timeScale = wasScale;
+
+    // Опорная фаза — нижняя четверть размаха стопы по высоте. Там стопа
+    // стоит на полу и уезжает назад ровно со скоростью хода.
+    const thr = lo + (hi - lo) * 0.25;
+    const dt = dur / (N - 1);
+    let sum = 0, n = 0;
+    for(let i = 1; i < N; i++)
+      for(let k = 0; k < feet.length; k++)
+        if(rows[i][k].y < thr){
+          const back = (rows[i - 1][k].z - rows[i][k].z) / dt;
+          if(back > 0){ sum += back; n++; }
+        }
+    return n ? sum / n : 0;
+  }
+
   update(dt){
     // Держим защиту: доводим клип до момента закрытия и замираем.
     if(this.held){
@@ -244,7 +307,7 @@ export class Character {
 }
 
 // Загрузить персонажа. Возвращает Character.
-export async function loadCharacter(url){
+export async function loadCharacter(url, targetHeight = HEIGHT.child){
   const fbx = await load(url);
   await attachTexture(fbx, url);
 
@@ -254,7 +317,7 @@ export async function loadCharacter(url){
   const box = new THREE.Box3().setFromObject(fbx);
   const size = new THREE.Vector3();
   box.getSize(size);
-  const scale = size.y > 0 ? TARGET_HEIGHT / size.y : 1;
+  const scale = size.y > 0 ? targetHeight / size.y : 1;
   fbx.scale.setScalar(scale);
 
   // Ставим ногами на пол: после масштабирования низ габаритов должен быть в нуле.

@@ -13,6 +13,7 @@ import { showStart } from "./ui/start.js";
 import { profile, saveProfile } from "./core/profile.js";
 import { makeHero } from "./fight/hero.js";
 import { makeSensei } from "./fight/sensei.js";
+import { renderPortrait } from "./ui/portrait.js";
 import { makeTraining, STATE } from "./stages/training.js";
 import { makeTaskUI } from "./ui/task.js";
 import { DOJO } from "./data/levels/dojo.js";
@@ -70,21 +71,26 @@ async function begin(p){
   // просто чернеет на несколько секунд и кажется, что игра сломалась.
   loading.classList.remove("hidden");
   const hero = await makeHero(p.hero, belt.color);
-  const sensei = await makeSensei();
+  const sensei = await makeSensei(DOJO.task.patrol);
   loading.classList.add("hidden");
 
   scene.add(hero.object);
   hero.setMode(DOJO.mode);
   showMode(hero.mode);
 
-  // Сэнсэй ходит по кругу перед знаменем.
+  // Сэнсэй объясняет задание, потом обходит зал.
+  let face = null;
   if(sensei){
     scene.add(sensei.object);
-    sensei.place(DOJO.task.sensei.x, DOJO.task.sensei.z, 0);
+    face = renderPortrait(sensei.character);
+    sensei.brief(hero.object.position.x, hero.object.position.z);
   }
 
   // Задание уровня: сэнсэй объясняет, дальше отсчёт.
-  const ui = makeTaskUI(DOJO, p.name, () => stage.begin());
+  const ui = makeTaskUI(DOJO, p.name, () => {
+    if(sensei) sensei.release();
+    stage.begin();
+  }, face);
   const stage = makeTraining(DOJO, arena.userData.targets, ui);
 
   document.getElementById("done-go").addEventListener("click", () => location.reload());
@@ -107,13 +113,13 @@ async function begin(p){
     // но сцена живёт — сэнсэй ходит, камера едет.
     if(stage.state === STATE.BRIEF){
       if(took("enter")) ui.accept();
-      if(sensei){ sensei.setWalking(false); sensei.faceTo(pos.x, pos.z); sensei.step(dt); }
+      if(sensei) sensei.step(dt);
       hero.update(dt, false, false);
       followShadow(pos.x, pos.z);
       updateCamera(dt, pos);
       return;
     }
-    if(sensei){ sensei.setWalking(true); sensei.step(dt); }
+    if(sensei) sensei.step(dt);
 
     // Этап закончился — управление отдаём, но бой уже не идёт.
     if(stage.state !== STATE.PLAY){

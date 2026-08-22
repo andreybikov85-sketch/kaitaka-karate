@@ -178,9 +178,21 @@ html, body{
 }
 #brief.hidden, #done.hidden{ display:none; }
 
+/* Лицо сэнсэя снимается с 3D-модели при загрузке, поэтому всегда
+   совпадает с тем, кто ходит по залу. */
+#brief-face{
+  width:132px; height:132px;
+  border-radius:50%;
+  object-fit:cover;
+  background:rgba(63,58,140,.35);
+  border:2px solid var(--gold);
+  box-shadow:0 8px 26px rgba(0,0,0,.55);
+}
+#brief-face[hidden]{ display:none; }
+
 .who-said{
   font-size:13px; letter-spacing:.3em; color:var(--gold);
-  margin-bottom:6px;
+  margin-top:4px; margin-bottom:6px;
 }
 #brief-text p{
   font-size:20px; line-height:1.55; max-width:620px;
