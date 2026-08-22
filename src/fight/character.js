@@ -72,15 +72,39 @@ export class Character {
     this.actions = {};
     this.current = null;
     this.once = null;          // разовая анимация: удар, падение
+    this.restore = false;      // нужно ли вернуть цикл после разовой
     this.height = height;
 
     this.mixer.addEventListener("finished", e => {
-      if(e.action === this.once) this.once = null;
+      if(e.action !== this.once) return;
+      // Убрать вес доигравшего удара обязательно. У разовых стоит «замереть
+      // на последнем кадре», и без этого застывшая поза остаётся с полным
+      // весом навсегда, подмешиваясь во всё последующее: ходьба после удара
+      // идёт вполсилы, ноги перебирают медленнее тела.
+      e.action.fadeOut(0.12);
+      this.once = null;
     });
   }
 
   // Занят разовой анимацией — движение и новые удары пока запрещены.
   get busy(){ return !!this.once; }
+
+  // Насколько разовая анимация доиграна, 0..1. Нужно для связок: следующий
+  // удар разрешено начинать, не дожидаясь конца предыдущего.
+  get onceProgress(){
+    if(!this.once) return 1;
+    const c = this.once.getClip();
+    return c.duration ? Math.min(1, this.once.time / c.duration) : 1;
+  }
+
+  // Оборвать разовую анимацию — например, когда следующий удар связки
+  // перебивает предыдущий. Гасим плавно, а не обрываем: резкая остановка
+  // читается как подмена кадра.
+  cutOnce(){
+    if(!this.once) return;
+    this.once.fadeOut(0.08);
+    this.once = null;
+  }
 
   // Добавить клип анимации под коротким именем.
   //
@@ -118,14 +142,24 @@ export class Character {
     a.fadeIn(fade).play();
     if(this.current) this.current.fadeOut(fade);
     this.once = a;
+    this.restore = true;         // цикл придётся вернуть, когда разовая кончится
     return true;
   }
 
   update(dt){
     this.mixer.update(dt);
-    // Разовая закончилась — возвращаем цикл, который шёл до неё.
-    if(!this.once && this.current && this.current.getEffectiveWeight() < 0.99){
-      this.current.reset().fadeIn(0.12).play();
+
+    // Разовая закончилась — один раз возвращаем цикл, который шёл до неё.
+    //
+    // Здесь была ошибка, стоившая всей походки: восстановление запускалось
+    // по условию «вес цикла меньше единицы». Но во время ЛЮБОГО плавного
+    // перехода вес меньше единицы, поэтому цикл перезапускался с нуля каждый
+    // кадр. Ходьба не успевала проиграть ни шага — ноги дёргались на месте,
+    // а тело ехало вперёд. Восстанавливать надо ровно один раз и только
+    // после разовой анимации.
+    if(this.restore && !this.once){
+      this.restore = false;
+      if(this.current) this.current.reset().fadeIn(0.12).play();
     }
   }
 }

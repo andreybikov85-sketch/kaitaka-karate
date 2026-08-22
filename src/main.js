@@ -69,7 +69,9 @@ async function begin(p){
   document.getElementById("belt-rank").textContent = belt.rank;
   document.getElementById("belt-swatch").style.background = belt.color;
 
-  const SPEED = 5.2;
+  // Скорость берём у героя: она согласована с клипом ходьбы (moves.js).
+  // Разгонишь здесь — ноги начнут перебирать отдельно от тела.
+  const SPEED = hero.speed;
   const pos = hero.object.position;
   const halfLen = DOJO.length / 2 - 2;
   const halfDep = DOJO.depth / 2 - 0.6;
@@ -82,7 +84,7 @@ async function begin(p){
     // Удары разбираем ДО движения. Порядок важен: если сначала обработать
     // движение, только что начатый удар собьётся в стойку в том же кадре.
     if(took("kick"))  hero.act("kick");
-    if(took("punch")) hero.act("punch");
+    if(took("punch")) hero.attack();     // связка: цуки → хук → колено
     if(took("view"))  showView(toggleCameraMode());
 
     // Стрелки задают направление относительно ЭКРАНА, а не мира: вверх —

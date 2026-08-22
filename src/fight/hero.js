@@ -4,39 +4,27 @@
 // игре всё равно, что именно сейчас на арене:
 //   hero.object          — объект для сцены
 //   hero.update(dt, mv)  — кадр анимации
+//   hero.attack()        — связка руками: цуки → хук → колено
+//   hero.act(name)       — отдельный приём или реакция
+//   hero.busy            — занят, движение запрещено
 //   hero.setBelt(color)  — перекрасить пояс
-//   hero.real            — true, если это модель, а не заглушка
+//
+// Правила «что за чем идёт» лежат данными в moves.js — здесь только их
+// исполнение.
 
 import { loadCharacter, loadClips } from "./character.js";
 import { makeRig, poseIdle, poseWalk } from "./procedural.js";
 import { makePlaceholder, animateWalk, setBeltColor } from "./placeholder.js";
+import { MOVES, LOOPS, CHAIN_WINDOW, CANCEL_FROM, MOVE_SPEED } from "./moves.js";
 
-// Анимации. Чего нет в assets/anims/ — просто недоступно, игра не падает.
-//
-// secs — сколько действие длится в игре. Это ТЕМП ИГРЫ, а не длина файла:
-// Mixamo отдаёт удар рукой на 1.8 секунды, ногой на 1.6. Для ребёнка это
-// не бой, а ожидание. Клип ускоряется до нужной длительности сам.
-const CLIPS = {
-  idle:  { url:"assets/anims/idle.json" },
-  walk:  { url:"assets/anims/walk.json" },
-  punch: { url:"assets/anims/punch.json", secs:0.40 },   // цуки, прямой
-  hook:  { url:"assets/anims/hook.json",  secs:0.50 },   // боковой, добивание связки
-  kick:  { url:"assets/anims/kick.json",  secs:0.62 },   // гери
-  block: { url:"assets/anims/block.json", secs:0.30 },
-  hit:   { url:"assets/anims/hit.json",   secs:0.38 },
-  down:  { url:"assets/anims/down.json",  secs:0.90 },
-  dash:  { url:"assets/anims/dash.json",  secs:0.45 }    // рывок вперёд
-};
+// Файлы клипов собираются из таблицы приёмов: имя приёма — имя файла.
+const CLIPS = {};
+for(const name of [...Object.keys(LOOPS), ...Object.keys(MOVES)]){
+  CLIPS[name] = { url: `assets/anims/${name}.json`, secs: MOVES[name]?.secs };
+}
 
-// Разовые: проигрываются один раз и возвращают бойца в стойку.
-const ONCE = ["punch", "hook", "kick", "hit", "down", "dash"];
-
-// Связка руками: второй удар подряд идёт другой рукой и сбоку.
-// Так удары складываются в комбинацию, а не повторяются под копирку.
-const COMBO_WINDOW = 0.9;
-
-// Файлы пробуются по порядку. Как только в assets/models/ появятся boy.fbx
-// и girl.fbx, они подхватятся сами — правок в коде не нужно.
+// Файлы моделей пробуются по порядку. Как только в assets/models/ появятся
+// boy.fbx и girl.fbx, они подхватятся сами — правок в коде не нужно.
 const MODELS = {
   boy:  ["assets/models/boy.fbx",  "assets/models/passive_marker_man.fbx"],
   girl: ["assets/models/girl.fbx", "assets/models/passive_marker_man.fbx"]
@@ -58,12 +46,46 @@ export async function makeHero(who, beltColor){
 
 function realHero(ch, url, clips){
   const rig = makeRig(ch.root);
-  let t = 0;
-  let lastPunch = null, sinceLastPunch = 99;
+  let t = 0;                    // время для анимации кодом
+  let chain = null;             // следующий приём связки
+  let sinceStrike = 99;         // сколько прошло с последнего удара
+  let active = null;            // какой приём идёт сейчас
 
-  // Клипы стойки и ходьбы главнее кода. Но набор может быть неполным:
-  // пока есть только удар, циклы по-прежнему считаются формулой.
-  const cycleFromClips = !!(ch.actions.walk || ch.actions.idle);
+  // Стойка и ходьба клипами — если их нет, считаем кодом.
+  const cycleFromClips = !!(ch.actions.walk && ch.actions.idle);
+
+  // Подгоняем скорость клипа ходьбы под скорость героя. Без этого ноги
+  // перебирают отдельно от тела: клип проходит около метра в секунду,
+  // а игра везёт персонажа быстрее — получается скольжение.
+  if(ch.actions.walk && LOOPS.walk.groundSpeed){
+    ch.actions.walk.timeScale = MOVE_SPEED / LOOPS.walk.groundSpeed;
+  }
+
+  function start(name){
+    const m = MOVES[name];
+    if(!m || !ch.actions[name]) return false;
+
+    if(active){
+      const cur = MOVES[active];
+      // Реакция прерывает всё, что слабее её.
+      if(m.priority){
+        if((cur.priority || 1) >= m.priority) return false;
+        ch.cutOnce();
+      }
+      // Удар можно оборвать следующим в связке, но только во второй
+      // половине — иначе связка выглядит как дёрганье.
+      else if(m.kind === "strike" && cur.kind === "strike"){
+        if(ch.onceProgress < CANCEL_FROM) return false;
+        ch.cutOnce();
+      }
+      else return false;
+    }
+
+    if(!ch.playOnce(name)) return false;
+    active = name;
+    if(m.kind === "strike"){ chain = m.chain; sinceStrike = 0; }
+    return true;
+  }
 
   return {
     object: ch.root,
@@ -71,32 +93,31 @@ function realHero(ch, url, clips){
     source: url,
     rigged: rig.ok,
     clips,
+    speed: MOVE_SPEED,
     mode: cycleFromClips ? "клипы" : (rig.ok ? "код" : "статуя"),
 
-    // Занят ударом — движение и новый удар запрещены. Ровно та же логика,
-    // что в 2D-прототипе: без неё удар сбрасывается в стойку в том же кадре.
     get busy(){ return ch.busy; },
+    get move(){ return active; },
 
-    // Разовое действие: удар, получение урона, падение.
-    act(name){
-      if(!ONCE.includes(name)) return false;
-
-      // Второй цуки подряд превращается в хук — получается связка.
-      if(name === "punch" && ch.actions.hook && sinceLastPunch < COMBO_WINDOW && lastPunch === "punch"){
-        if(ch.playOnce("hook")){ lastPunch = "hook"; sinceLastPunch = 0; return true; }
-      }
-      const ok = ch.playOnce(name);
-      if(ok && (name === "punch" || name === "hook")){
-        lastPunch = name; sinceLastPunch = 0;
-      }
-      return ok;
+    // Связка руками. Нажатие в окне продолжает комбинацию,
+    // вне окна — начинает заново.
+    attack(){
+      const next = (chain && sinceStrike < CHAIN_WINDOW) ? chain : "punch";
+      return start(next);
     },
 
-    update(dt, moving){
-      sinceLastPunch += dt;
-      ch.update(dt);                 // разовые клипы крутятся всегда
+    act(name){ return start(name); },
 
-      if(ch.busy) return;            // во время удара позу не трогаем
+    update(dt, moving){
+      sinceStrike += dt;
+      ch.update(dt);
+
+      // Разовая доиграла — отпускаем состояние.
+      if(!ch.busy && active) active = null;
+      // Окно связки истекло — комбинация сбрасывается.
+      if(sinceStrike >= CHAIN_WINDOW) chain = null;
+
+      if(ch.busy) return;
 
       if(cycleFromClips){
         ch.play(moving ? "walk" : "idle");
@@ -125,7 +146,10 @@ function boxHero(who, beltColor){
     source: null,
     clips: [],
     mode: "коробки",
+    speed: MOVE_SPEED,
     busy: false,
+    move: null,
+    attack(){ return false; },
     act(){ return false; },
     update(dt, moving){
       t = moving ? t + dt * 9 : 0;
