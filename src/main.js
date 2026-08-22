@@ -12,6 +12,9 @@ import { onUpdate, onRender, startLoop } from "./core/loop.js";
 import { showStart } from "./ui/start.js";
 import { profile, saveProfile } from "./core/profile.js";
 import { makeHero } from "./fight/hero.js";
+import { makeSensei } from "./fight/sensei.js";
+import { makeTraining, STATE } from "./stages/training.js";
+import { makeTaskUI } from "./ui/task.js";
 import { DOJO } from "./data/levels/dojo.js";
 import { MODES } from "./fight/moves.js";
 import { BELTS } from "./data/belts.js";
@@ -26,7 +29,7 @@ initInput();
 const logo = new THREE.TextureLoader().load("assets/logo.png");
 logo.colorSpace = THREE.SRGBColorSpace;
 
-buildArena(scene, DOJO, lights, logo);
+const arena = buildArena(scene, DOJO, lights, logo);
 
 /* ---- Экран входа ---- */
 
@@ -67,11 +70,24 @@ async function begin(p){
   // просто чернеет на несколько секунд и кажется, что игра сломалась.
   loading.classList.remove("hidden");
   const hero = await makeHero(p.hero, belt.color);
+  const sensei = await makeSensei();
   loading.classList.add("hidden");
 
   scene.add(hero.object);
   hero.setMode(DOJO.mode);
   showMode(hero.mode);
+
+  // Сэнсэй ходит по кругу перед знаменем.
+  if(sensei){
+    scene.add(sensei.object);
+    sensei.place(DOJO.task.sensei.x, DOJO.task.sensei.z, 0);
+  }
+
+  // Задание уровня: сэнсэй объясняет, дальше отсчёт.
+  const ui = makeTaskUI(DOJO, p.name, () => stage.begin());
+  const stage = makeTraining(DOJO, arena.userData.targets, ui);
+
+  document.getElementById("done-go").addEventListener("click", () => location.reload());
 
   document.getElementById("hero-name").textContent = p.name;
   document.getElementById("belt-name").textContent = belt.name;
@@ -87,6 +103,27 @@ async function begin(p){
   let faceTarget = Math.PI / 2;
 
   onUpdate(dt => {
+    // Пока сэнсэй объясняет, боец слушает: управление не работает,
+    // но сцена живёт — сэнсэй ходит, камера едет.
+    if(stage.state === STATE.BRIEF){
+      if(took("enter")) ui.accept();
+      if(sensei){ sensei.setWalking(false); sensei.faceTo(pos.x, pos.z); sensei.step(dt); }
+      hero.update(dt, false, false);
+      followShadow(pos.x, pos.z);
+      updateCamera(dt, pos);
+      return;
+    }
+    if(sensei){ sensei.setWalking(true); sensei.step(dt); }
+
+    // Этап закончился — управление отдаём, но бой уже не идёт.
+    if(stage.state !== STATE.PLAY){
+      hero.update(dt, false, false);
+      stage.update(dt, hero);            // снаряды докачиваются
+      followShadow(pos.x, pos.z);
+      updateCamera(dt, pos);
+      return;
+    }
+
     // Удары разбираем ДО движения. Порядок важен: если сначала обработать
     // движение, только что начатый удар собьётся в стойку в том же кадре.
     if(took("kick"))  hero.act("kick");
@@ -139,6 +176,12 @@ async function begin(p){
     hero.object.rotation.y += d * (1 - Math.exp(-14 * dt));
 
     hero.update(dt, moving, backward);
+
+    // Попадания считаем ПОСЛЕ обновления героя: поза бьющей конечности
+    // должна быть уже нынешней, иначе удар засчитывается по вчерашнему
+    // положению руки.
+    hero.object.updateMatrixWorld(true);
+    stage.update(dt, hero);
 
     // Границы татами.
     pos.x = Math.max(-halfLen, Math.min(halfLen, pos.x));

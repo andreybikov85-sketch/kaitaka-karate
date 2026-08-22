@@ -20,6 +20,10 @@ export function buildArena(scene, level, lights, logo){
   floor(g, level, L, D);
   walls(g, level, L, D);
 
+  // Предметы с полем target — снаряды задания. Их отдаём наружу, чтобы
+  // этап мог по ним попадать и раскачивать их от ударов.
+  const targets = [];
+
   for(const p of level.props || []){
     const make = PROPS[p.type];
     if(!make) continue;                      // неизвестный предмет — пропускаем молча
@@ -27,11 +31,13 @@ export function buildArena(scene, level, lights, logo){
     o.position.set(p.x || 0, p.y || 0, p.z || 0);
     if(p.ry) o.rotation.y = p.ry;
     g.add(o);
+    if(p.target !== undefined) targets[p.target] = o;
   }
 
   applyLight(scene, level, lights);
   scene.add(g);
   current = g;
+  g.userData.targets = targets;
   return g;
 }
 

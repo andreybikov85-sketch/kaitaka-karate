@@ -41,6 +41,12 @@
 
   <button id="mode" data-k="mode" data-mode="kumite" title="Тренировка или кумитэ (T)">組手  КУМИТЭ</button>
 
+  <!-- Панель задания: снаряды и время -->
+  <div id="task" class="hidden">
+    <div id="task-bars"></div>
+    <div id="task-timer">1:00</div>
+  </div>
+
   <div id="hint">Стрелки — движение · J — цуки · K — гери</div>
 
   <div id="pad">
@@ -81,6 +87,20 @@
   </div>
 
   <button id="begin" disabled>НАЧАТЬ ПУТЬ</button>
+</div>
+
+<!-- Сэнсэй объясняет задание -->
+<div id="brief" class="hidden">
+  <div class="who-said">先生　СЭНСЭЙ</div>
+  <div id="brief-text"></div>
+  <button id="brief-go">ОСУ!</button>
+</div>
+
+<!-- Итог этапа -->
+<div id="done" class="hidden" data-won="0">
+  <div id="done-text"></div>
+  <div id="done-sub"></div>
+  <button id="done-go">ЕЩЁ РАЗ</button>
 </div>
 
 <div id="loading">

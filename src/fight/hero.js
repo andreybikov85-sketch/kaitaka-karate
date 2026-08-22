@@ -12,7 +12,8 @@
 // Правила «что за чем идёт» лежат данными в moves.js — здесь только их
 // исполнение.
 
-import { loadCharacter, loadClips } from "./character.js";
+import * as THREE from "three";
+import { loadCharacter, loadClips, strikeWindow } from "./character.js";
 import { makeRig, poseIdle, poseWalk } from "./procedural.js";
 import { makePlaceholder, animateWalk, setBeltColor } from "./placeholder.js";
 import { MOVES, LOOPS, MODES, DEFAULT_MODE, CHAIN_WINDOW, CANCEL_FROM, BACK_FACTOR } from "./moves.js";
@@ -95,6 +96,24 @@ function realHero(ch, url, clips){
   // Стойка и движение клипами — если их нет, считаем кодом.
   const cycleFromClips = !!(ch.actions[mode.move] && ch.actions[mode.idle]);
 
+  // Окно урона у каждого удара считается из самого клипа: отрезок, где
+  // бьющая конечность вынесена вперёд. Правило из 2D-прототипа — урон
+  // проходит в фазе выпада, иначе цель получает его до того, как удар
+  // визуально дошёл, и бой ощущается нечестным.
+  const windows = {};
+  const limbs = {};
+  for(const [name, m] of Object.entries(MOVES)){
+    if(m.kind !== "strike" || !ch.actions[name]) continue;
+    const w = strikeWindow(ch, ch.actions[name].getClip(), m.limb);
+    if(w) windows[name] = w;
+    ch.root.traverse(o => {
+      if(o.isBone && o.name.replace(/^mixamorig:?/, "") === m.limb && !limbs[m.limb]) limbs[m.limb] = o;
+    });
+  }
+
+  let strikeId = 0;
+  const strikePoint = new THREE.Vector3();
+
   function start(name){
     const m = MOVES[name];
     if(!m || !ch.actions[name]) return false;
@@ -117,8 +136,22 @@ function realHero(ch, url, clips){
 
     if(!ch.playOnce(name)) return false;
     active = name;
-    if(m.kind === "strike"){ chain = m.chain; sinceStrike = 0; }
+    if(m.kind === "strike"){ chain = m.chain; sinceStrike = 0; strikeId++; }
     return true;
+  }
+
+  // Удар сейчас в фазе выпада? Возвращает точку бьющей конечности и номер
+  // удара — по номеру цель понимает, что этот удар она уже засчитала,
+  // и один удар не считается дважды за несколько кадров.
+  function strikeNow(){
+    if(!active) return null;
+    const w = windows[active];
+    const limb = limbs[MOVES[active]?.limb];
+    if(!w || !limb) return null;
+    const p = ch.onceProgress;
+    if(p < w.from || p > w.to) return null;
+    limb.getWorldPosition(strikePoint);
+    return { id: strikeId, move: active, point: strikePoint };
   }
 
   return {
@@ -150,6 +183,7 @@ function realHero(ch, url, clips){
     },
 
     act(name){ return start(name); },
+    strikeNow,
 
     // Блок держится, пока нажата кнопка. Вызывается каждый кадр.
     setBlock(on){
@@ -214,6 +248,7 @@ function boxHero(who, beltColor){
     setBlock(){ return false; },
     attack(){ return false; },
     act(){ return false; },
+    strikeNow(){ return null; },
     update(dt, moving){
       t = moving ? t + dt * 9 : 0;
       animateWalk(fig, t, moving);
