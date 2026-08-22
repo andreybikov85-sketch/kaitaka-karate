@@ -75,13 +75,17 @@ html, body{
 
 /* Экранные кнопки — только для тача. На компьютере есть клавиатура. */
 #pad{ position:absolute; left:20px; bottom:20px; display:none; }
-#acts{ position:absolute; right:20px; bottom:20px; display:none; }
+#acts{ position:absolute; right:20px; bottom:20px; display:none; gap:12px; align-items:flex-end; }
 @media (pointer:coarse){
-  #pad, #acts{ display:block; }
+  #pad{ display:block; }
+  #acts{ display:flex; }
   #hint{ display:none; }
 }
 
-.act{ width:96px; height:96px; border-radius:50%; font-size:15px; font-weight:700; letter-spacing:.08em; }
+/* Гери крупнее и ниже цуки — так пальцу не надо целиться, кнопки
+   различаются на ощупь, а не только по надписи. */
+.act{ width:86px; height:86px; border-radius:50%; font-size:14px; font-weight:700; letter-spacing:.08em; }
+.act[data-k="kick"]{ width:100px; height:100px; font-size:15px; }
 
 .dpad{
   display:grid;
