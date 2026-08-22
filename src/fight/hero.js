@@ -15,7 +15,7 @@
 import { loadCharacter, loadClips } from "./character.js";
 import { makeRig, poseIdle, poseWalk } from "./procedural.js";
 import { makePlaceholder, animateWalk, setBeltColor } from "./placeholder.js";
-import { MOVES, LOOPS, CHAIN_WINDOW, CANCEL_FROM, MOVE_SPEED } from "./moves.js";
+import { MOVES, LOOPS, MODES, DEFAULT_MODE, CHAIN_WINDOW, CANCEL_FROM } from "./moves.js";
 
 // Файлы клипов собираются из таблицы приёмов: имя приёма — имя файла.
 const CLIPS = {};
@@ -50,16 +50,37 @@ function realHero(ch, url, clips){
   let chain = null;             // следующий приём связки
   let sinceStrike = 99;         // сколько прошло с последнего удара
   let active = null;            // какой приём идёт сейчас
+  let mode = MODES[DEFAULT_MODE];
 
-  // Стойка и ходьба клипами — если их нет, считаем кодом.
-  const cycleFromClips = !!(ch.actions.walk && ch.actions.idle);
+  // Высота посадки, выставленная при загрузке: ноги ровно на полу.
+  const inner = ch.root.children[0];
+  const baseY = inner.position.y;
 
-  // Подгоняем скорость клипа ходьбы под скорость героя. Без этого ноги
-  // перебирают отдельно от тела: клип проходит около метра в секунду,
-  // а игра везёт персонажа быстрее — получается скольжение.
-  if(ch.actions.walk && LOOPS.walk.groundSpeed){
-    ch.actions.walk.timeScale = MOVE_SPEED / LOOPS.walk.groundSpeed;
+  // Клипы записаны из разных стоек: в обычной ходьбе лодыжка опускается
+  // ниже, чем в боевом подшаге. Замеряем каждый цикл и запоминаем поправку,
+  // иначе при смене режима боец повиснет над татами.
+  const groundFix = {};
+  let refGround = null;
+  for(const name of Object.keys(LOOPS)){
+    if(!ch.actions[name]) continue;
+    const lo = ch.measureGround(name);
+    if(refGround === null || lo < refGround) refGround = lo;
+    groundFix[name] = lo;
   }
+  for(const k in groundFix) groundFix[k] = refGround - groundFix[k];
+
+  // Темп клипа подгоняется под скорость режима: иначе ноги перебирают
+  // отдельно от тела и персонаж скользит.
+  function applyMode(m){
+    mode = MODES[m] || mode;
+    const a = ch.actions[mode.move];
+    const gs = LOOPS[mode.move]?.groundSpeed;
+    if(a && gs) a.timeScale = mode.speed / gs;
+  }
+  applyMode(DEFAULT_MODE);
+
+  // Стойка и движение клипами — если их нет, считаем кодом.
+  const cycleFromClips = !!(ch.actions[mode.move] && ch.actions[mode.idle]);
 
   function start(name){
     const m = MOVES[name];
@@ -93,11 +114,16 @@ function realHero(ch, url, clips){
     source: url,
     rigged: rig.ok,
     clips,
-    speed: MOVE_SPEED,
-    mode: cycleFromClips ? "клипы" : (rig.ok ? "код" : "статуя"),
+    anim: cycleFromClips ? "клипы" : (rig.ok ? "код" : "статуя"),
 
+    get speed(){ return mode.speed; },
+    get mode(){ return mode; },
     get busy(){ return ch.busy; },
     get move(){ return active; },
+
+    // Смена режима: тренировка ⇄ кумитэ.
+    setMode(m){ applyMode(m); return mode; },
+    toggleMode(){ return this.setMode(mode === MODES.kumite ? "training" : "kumite"); },
 
     // Связка руками. Нажатие в окне продолжает комбинацию,
     // вне окна — начинает заново.
@@ -120,7 +146,10 @@ function realHero(ch, url, clips){
       if(ch.busy) return;
 
       if(cycleFromClips){
-        ch.play(moving ? "walk" : "idle");
+        const loop = moving ? mode.move : mode.idle;
+        ch.play(loop);
+        // Выравниваем посадку под стойку текущего клипа.
+        inner.position.y = baseY + (groundFix[loop] || 0);
         return;
       }
       if(!rig.ok) return;
@@ -145,10 +174,13 @@ function boxHero(who, beltColor){
     real: false,
     source: null,
     clips: [],
-    mode: "коробки",
-    speed: MOVE_SPEED,
+    anim: "коробки",
+    speed: MODES[DEFAULT_MODE].speed,
+    mode: MODES[DEFAULT_MODE],
     busy: false,
     move: null,
+    setMode(){ return MODES[DEFAULT_MODE]; },
+    toggleMode(){ return MODES[DEFAULT_MODE]; },
     attack(){ return false; },
     act(){ return false; },
     update(dt, moving){

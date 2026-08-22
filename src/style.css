@@ -73,6 +73,23 @@ html, body{
 #view-btn:active{ background:var(--club); }
 #view-icon{ font-size:15px; color:var(--gold); line-height:1; }
 
+/* Режим движения. Цвет несёт смысл: красный киокушинкай — поединок,
+   спокойный индиго клуба — тренировка. Видно, не читая надписи. */
+#mode{
+  position:absolute; top:58px; right:16px;
+  background:rgba(20,24,36,.72);
+  border:1px solid rgba(232,182,71,.35);
+  border-left:3px solid var(--kyoku);
+  border-radius:0 6px 6px 0;
+  padding:8px 14px;
+  color:var(--gi);
+  font:inherit; font-size:12px; font-weight:700; letter-spacing:.12em;
+  cursor:pointer;
+  backdrop-filter:blur(6px);
+}
+#mode[data-mode="training"]{ border-left-color:var(--club); }
+#mode:active{ background:var(--club); }
+
 /* Экранные кнопки — только для тача. На компьютере есть клавиатура. */
 #pad{ position:absolute; left:20px; bottom:20px; display:none; }
 #acts{ position:absolute; right:20px; bottom:20px; display:none; gap:12px; align-items:flex-end; }

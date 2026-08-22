@@ -146,6 +146,40 @@ export class Character {
     return true;
   }
 
+  // На какой высоте оказывается самая нижняя стопа в этом клипе.
+  //
+  // Клипы записаны из разных стоек: в обычной ходьбе лодыжка опускается
+  // до 0.10 м, а в боевом подшаге — только до 0.17. Если не выравнивать,
+  // при переходе на подшаг боец повиснет над татами на семь сантиметров.
+  measureGround(name){
+    const a = this.actions[name];
+    if(!a) return 0;
+
+    const feet = [];
+    this.model.traverse(o => {
+      if(o.isBone && /(Left|Right)Foot$/.test(o.name.replace(/^mixamorig:?/, ""))) feet.push(o);
+    });
+    if(!feet.length) return 0;
+
+    const wasTime = a.time, wasRunning = a.isRunning();
+    a.reset().play();
+    a.setEffectiveWeight(1);
+
+    const dur = a.getClip().duration;
+    const v = new THREE.Vector3();
+    let lo = Infinity;
+    for(let i = 0; i < 24; i++){
+      a.time = dur * i / 23;
+      this.mixer.update(0);
+      this.root.updateMatrixWorld(true);
+      for(const f of feet){ f.getWorldPosition(v); lo = Math.min(lo, v.y - this.root.position.y); }
+    }
+
+    a.stop();
+    if(wasRunning){ a.reset().play(); a.time = wasTime; }
+    return lo;
+  }
+
   update(dt){
     this.mixer.update(dt);
 

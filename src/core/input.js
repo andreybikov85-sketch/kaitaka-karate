@@ -16,6 +16,7 @@ const MAP = {
   Space:"kiai",
   Enter:"enter",
   KeyV:"view",
+  KeyT:"mode",
   KeyP:"pause", Escape:"pause"
 };
 

@@ -13,6 +13,7 @@ import { showStart } from "./ui/start.js";
 import { profile, saveProfile } from "./core/profile.js";
 import { makeHero } from "./fight/hero.js";
 import { DOJO } from "./data/levels/dojo.js";
+import { MODES } from "./fight/moves.js";
 import { BELTS } from "./data/belts.js";
 
 const canvas = document.getElementById("view");
@@ -46,6 +47,12 @@ function showView(m){
   hint.textContent = DOJO.tip + "  ·  V — сменить вид";
 }
 
+const modeEl = document.getElementById("mode");
+function showMode(m){
+  modeEl.textContent = m.jp + "  " + m.label.toUpperCase();
+  modeEl.dataset.mode = m === MODES.kumite ? "kumite" : "training";
+}
+
 /* ---- Игра ---- */
 
 async function begin(p){
@@ -63,15 +70,14 @@ async function begin(p){
   loading.classList.add("hidden");
 
   scene.add(hero.object);
+  hero.setMode(DOJO.mode);
+  showMode(hero.mode);
 
   document.getElementById("hero-name").textContent = p.name;
   document.getElementById("belt-name").textContent = belt.name;
   document.getElementById("belt-rank").textContent = belt.rank;
   document.getElementById("belt-swatch").style.background = belt.color;
 
-  // Скорость берём у героя: она согласована с клипом ходьбы (moves.js).
-  // Разгонишь здесь — ноги начнут перебирать отдельно от тела.
-  const SPEED = hero.speed;
   const pos = hero.object.position;
   const halfLen = DOJO.length / 2 - 2;
   const halfDep = DOJO.depth / 2 - 0.6;
@@ -86,6 +92,12 @@ async function begin(p){
     if(took("kick"))  hero.act("kick");
     if(took("punch")) hero.attack();     // связка: цуки → хук → колено
     if(took("view"))  showView(toggleCameraMode());
+    if(took("mode"))  showMode(hero.toggleMode());
+
+    // Скорость берём у героя каждый кадр: она задаётся режимом и
+    // согласована с его клипом движения. Разгонишь здесь — ноги начнут
+    // перебирать отдельно от тела.
+    const SPEED = hero.speed;
 
     // Стрелки задают направление относительно ЭКРАНА, а не мира: вверх —
     // это всегда «от игрока вглубь», в каком бы виде мы ни были. Иначе при
