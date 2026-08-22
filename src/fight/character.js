@@ -11,6 +11,7 @@ import * as THREE from "three";
 import { FBXLoader } from "three/addons/loaders/FBXLoader.js";
 
 const loader = new FBXLoader();
+const texLoader = new THREE.TextureLoader();
 
 // Рост персонажа в мире игры, в метрах. Мир строится в метрах:
 // столбы на арене 2.4 м, татами размечен по метру.
@@ -18,6 +19,49 @@ const TARGET_HEIGHT = 1.55;   // ребёнок девяти лет
 
 function load(url){
   return new Promise((ok, fail) => loader.load(url, ok, undefined, fail));
+}
+
+// Текстура рядом с моделью: boy.fbx → boy.png.
+//
+// Генераторы вроде Tripo записывают в FBX путь к текстуре со своего сервера
+// («/home/app/...»), и на нашей стороне он никуда не ведёт: материал есть,
+// картинки в нём нет, персонаж выходит без раскраски. Поэтому текстуру кладём
+// файлом рядом и подставляем сами. Заодно её можно ужать — из генератора она
+// приезжает вчетверо тяжелее, чем нужно игре.
+async function attachTexture(fbx, url){
+  let needs = false;
+  fbx.traverse(o => {
+    if(!o.isMesh) return;
+    for(const m of [].concat(o.material)) if(!m.map || !m.map.image) needs = true;
+  });
+  if(!needs) return false;
+
+  const texUrl = url.replace(/\.fbx$/i, ".png");
+  let tex;
+  try {
+    tex = await new Promise((ok, fail) => texLoader.load(texUrl, ok, undefined, fail));
+  } catch(e){
+    return false;                       // файла нет — остаётся как есть
+  }
+  tex.colorSpace = THREE.SRGBColorSpace;
+  // flipY=true — как принято в FBX. Проверено замером: при false профиль
+  // цветов по высоте превращается в однородную кашу, при true читается
+  // как человек — тёмные волосы, лицо, белое кимоно, босые ступни.
+  tex.flipY = true;
+  tex.needsUpdate = true;
+
+  fbx.traverse(o => {
+    if(!o.isMesh) return;
+    for(const m of [].concat(o.material)){
+      m.map = tex;
+      // Цвет материала домножается на текстуру. Генераторы часто оставляют
+      // его чёрным — тогда любая текстура умножится в ноль и персонаж
+      // будет чёрным силуэтом.
+      if(m.color) m.color.setScalar(1);
+      m.needsUpdate = true;
+    }
+  });
+  return true;
 }
 
 export class Character {
@@ -89,6 +133,7 @@ export class Character {
 // Загрузить персонажа. Возвращает Character.
 export async function loadCharacter(url){
   const fbx = await load(url);
+  await attachTexture(fbx, url);
 
   // Размер приводим сами, а не домножаем на 0.01 «как у Mixamo».
   // Модели из разных источников приезжают в разных единицах: сантиметры,
