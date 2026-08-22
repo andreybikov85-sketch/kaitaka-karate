@@ -71,6 +71,38 @@ export function woodTexture(){
   });
 }
 
+// Соломенная подушка макивары: плотное плетение рисовой соломы.
+export function strawTexture(){
+  return canvas(256, (g, S) => {
+    g.fillStyle = "#c9a45c";
+    g.fillRect(0, 0, S, S);
+
+    // Пучки соломы — вертикальные волокна разной светлоты.
+    for(let x = 0; x < S; x += 3){
+      const v = 0.5 + Math.random() * 0.5;
+      g.globalAlpha = 0.22;
+      g.fillStyle = v > 0.75 ? "#e6c98a" : "#8f6f34";
+      g.fillRect(x, 0, 2, S);
+    }
+    // Поперечные стяжки — то, чем солому держат в пучке.
+    g.globalAlpha = 0.30;
+    g.fillStyle = "#6f5526";
+    for(let y = 0; y < S; y += 42) g.fillRect(0, y, S, 5);
+
+    // Потёртости от ударов: макивару бьют в одно место.
+    g.globalAlpha = 0.14;
+    g.fillStyle = "#4a3517";
+    for(let i = 0; i < 60; i++){
+      const r = 4 + Math.random() * 14;
+      g.beginPath();
+      g.arc(S * 0.5 + (Math.random() - 0.5) * S * 0.5,
+            S * 0.5 + (Math.random() - 0.5) * S * 0.6, r, 0, 7);
+      g.fill();
+    }
+    g.globalAlpha = 1;
+  });
+}
+
 // Стена зала: светлая штукатурка с лёгкой неровностью.
 export function wallTexture(){
   return canvas(256, (g, S) => {

@@ -115,6 +115,16 @@ export class Character {
     return c.duration ? Math.min(1, this.once.time / c.duration) : 1;
   }
 
+  // Полностью снять анимацию: кости освобождаются, и позу можно задать
+  // кодом. Нужно там, где подходящего клипа нет.
+  freeze(){
+    this.mixer.stopAllAction();
+    this.current = null;
+    this.once = null;
+    this.held = null;
+    this.restore = false;
+  }
+
   // Оборвать разовую анимацию — например, когда следующий удар связки
   // перебивает предыдущий. Гасим плавно, а не обрываем: резкая остановка
   // читается как подмена кадра.

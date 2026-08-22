@@ -16,12 +16,13 @@
 
 import * as THREE from "three";
 import { loadCharacter, loadClip, HEIGHT } from "./character.js";
+import { makeRig, poseStand } from "./procedural.js";
 
 const MODEL = "assets/models/sensei.fbx";
 const CLIPS = {
-  idle: "assets/anims/idle.json",
-  walk: "assets/anims/walk.json",
-  turn: "assets/anims/sensei-walk.json"
+  stand: "assets/anims/sensei-stand.json",   // стоит и наблюдает
+  walk:  "assets/anims/walk.json",           // прямой шаг
+  turn:  "assets/anims/sensei-walk.json"     // шаг с поворотом влево
 };
 
 // Замерено на поворотном клипе: за цикл корпус уходит на столько градусов.
@@ -84,6 +85,24 @@ export async function makeSensei(area){
   const pos = ch.root.position.copy(corners[3]);
   ch.root.rotation.y = yaw;
 
+  // Стойка покоя. Если клипа нет — задаём позу кодом: учитель,
+  // остановившийся посмотреть, не должен стоять так, будто сейчас
+  // нападёт на ученика. Клип, когда он есть, главнее.
+  const rig = makeRig(ch.root);
+  const byCode = !ch.actions.stand && rig.ok;
+  let standT = 0;
+
+  function stand(dt){
+    if(byCode){
+      if(ch.current || ch.busy) ch.freeze();
+      standT += dt;
+      poseStand(rig, standT);
+    } else {
+      setClip("stand");
+      ch.update(dt);
+    }
+  }
+
   function setClip(name){
     if(ch.actions[name]) ch.play(name, 0.25);
   }
@@ -99,7 +118,6 @@ export async function makeSensei(area){
       mode = "brief";
       yaw = Math.atan2(x - pos.x, z - pos.z);
       ch.root.rotation.y = yaw;
-      setClip(ch.actions.idle ? "idle" : "walk");
     },
 
     // Объяснил — пошёл по периметру.
@@ -113,13 +131,12 @@ export async function makeSensei(area){
     },
 
     step(dt){
-      if(mode === "brief"){ ch.update(dt); return; }
+      if(mode === "brief"){ stand(dt); return; }
 
       if(mode === "stand"){
         timer -= dt;
         if(timer <= 0){ mode = "walk"; timer = rnd(GO.min, GO.max); setClip("walk"); }
-        ch.update(dt);
-        return;
+        else { stand(dt); return; }
       }
 
       if(mode === "turn"){
@@ -158,7 +175,6 @@ export async function makeSensei(area){
         if(timer <= 0){
           mode = "stand";
           timer = rnd(STAND.min, STAND.max);
-          setClip(ch.actions.idle ? "idle" : "walk");
         }
       }
       ch.update(dt);

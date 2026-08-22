@@ -116,6 +116,33 @@ export function poseIdle(rig, t){
   rig.bones.Hips.position.y = rig.hipsRestY * (1.005 + br * 0.006);
 }
 
+// Спокойная стойка: руки опущены, вес на обеих ногах, лёгкое дыхание.
+//
+// Нужна тем, кто сейчас не дерётся — сэнсэю, когда он остановился
+// посмотреть. Боевая стойка на нём выглядит так, будто он вот-вот
+// нападёт на собственного ученика.
+export function poseStand(rig, t){
+  reset(rig);
+  const br = Math.sin(t * 1.4);
+
+  aim(rig, "Spine", "Spine1", 0, 1, 0.01);
+  aim(rig, "Neck",  "Head",   0, 1, 0.02);
+
+  // Руки вдоль тела, чуть отведены от корпуса и слегка согнуты —
+  // прямые как палки выглядят неживо.
+  aim(rig, "LeftArm",      "LeftForeArm",   0.17, -0.98, 0.02);
+  aim(rig, "LeftForeArm",  "LeftHand",      0.10, -0.97, 0.20);
+  aim(rig, "RightArm",     "RightForeArm", -0.17, -0.98, 0.02);
+  aim(rig, "RightForeArm", "RightHand",    -0.10, -0.97, 0.20);
+
+  aim(rig, "LeftUpLeg",  "LeftLeg",   0.07, -1, 0.01);
+  aim(rig, "LeftLeg",    "LeftFoot",  0,    -1, -0.02);
+  aim(rig, "RightUpLeg", "RightLeg", -0.07, -1, 0.01);
+  aim(rig, "RightLeg",   "RightFoot", 0,    -1, -0.02);
+
+  rig.bones.Hips.position.y = rig.hipsRestY * (1.002 + br * 0.004);
+}
+
 // Шаг. Ноги качаются в противофазе, руки — навстречу ногам.
 export function poseWalk(rig, t){
   reset(rig);
