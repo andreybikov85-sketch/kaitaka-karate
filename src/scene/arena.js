@@ -7,7 +7,7 @@
 import * as THREE from "three";
 import { C } from "./palette.js";
 import { PROPS } from "./props.js";
-import { matTexture, woodTexture, wallTexture } from "./textures.js";
+import { floorTexture, woodTexture, wallTexture } from "./textures.js";
 
 let current = null;
 
@@ -17,7 +17,7 @@ export function buildArena(scene, level, lights, logo){
   const g = new THREE.Group();
   const L = level.length, D = level.depth, H = level.wallHeight || 2.9;
 
-  floor(g, L, D);
+  floor(g, L, D, level.competition);
   walls(g, L, D, H);
   ceiling(g, L, D, H);
 
@@ -40,12 +40,11 @@ export function buildArena(scene, level, lights, logo){
   return g;
 }
 
-function floor(g, L, D){
-  // Пазловые маты одной плоскостью с повторяющейся текстурой: один повтор —
-  // один мат метр на метр. Десятки отдельных матов дали бы то же самое,
-  // но стоили бы видеокарте в сотню раз дороже.
-  const t = matTexture();
-  t.repeat.set(L, D);
+function floor(g, L, D, competition){
+  // Весь пол одной плоскостью: маты и разметка площадки нарисованы
+  // в текстуре. Сотня отдельных матов выглядела бы так же, но стоила
+  // бы видеокарте в сотню раз дороже.
+  const t = floorTexture(L, D, competition);
   const m = new THREE.Mesh(
     new THREE.PlaneGeometry(L, D),
     new THREE.MeshStandardMaterial({ map: t, roughness: .82 })
@@ -102,9 +101,13 @@ function ceiling(g, L, D, H){
   // Потолок односторонний: видно снизу, а сверху его как бы нет.
   // Так вид сбоку смотрит в зал как в разрез, а вид из-за спины —
   // из-под потолка, и зал ощущается помещением, а не полем со стенами.
+  //
+  // Материал без расчёта освещения: нормаль потолка смотрит вниз, поэтому
+  // от заполняющего света ему достаётся цвет пола — то есть синий. Считать
+  // его честно значило бы получить тёмно-синий потолок вместо светлого.
   const m = new THREE.Mesh(
     new THREE.PlaneGeometry(L, D),
-    new THREE.MeshStandardMaterial({ color: C.ceiling, roughness: .9, side: THREE.FrontSide })
+    new THREE.MeshBasicMaterial({ color: C.ceiling, side: THREE.FrontSide })
   );
   m.rotation.x = Math.PI / 2;
   m.position.y = H;

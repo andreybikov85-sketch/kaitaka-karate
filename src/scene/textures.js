@@ -18,53 +18,86 @@ function canvas(size, draw){
   return t;
 }
 
-// Пазловые маты — то, чем на самом деле застелен зал КАЙТАКА.
+// Пол зала целиком: пазловые маты метр на метр и красная окантовка
+// соревновательной площадки посередине.
 //
-// Один повтор текстуры — один мат метр на метр. Замки рисуются по двум
-// сторонам из четырёх: тогда соседние повторы стыкуются шип в паз,
-// и стык читается так же, как на настоящем полу.
-export function matTexture(){
-  return canvas(512, (g, S) => {
-    g.fillStyle = CSS.mat;
-    g.fillRect(0, 0, S, S);
+// Рисуется одной картинкой на весь зал, а не повторяющимся мотивом.
+// Так и должно быть: площадку нельзя выложить повтором — её положение
+// зависит от размеров зала, а не от размера мата.
+//
+// L и D — размеры зала в метрах, comp — площадка: сторона и ширина
+// красной каймы. В соревнованиях по карате татами 8 на 8 метров
+// с окантовкой в один мат.
+export function floorTexture(L, D, comp){
+  const PX = 64;                                   // пикселей на метр
+  const c = document.createElement("canvas");
+  c.width = L * PX; c.height = D * PX;
+  const g = c.getContext("2d");
 
-    // Мелкое тиснение: у матов рифлёная поверхность, без неё пол
-    // выглядит как залитый краской лист.
-    g.globalAlpha = 0.05;
-    for(let y = 0; y < S; y += 6)
-      for(let x = 0; x < S; x += 6){
-        g.fillStyle = (x + y) % 12 ? "#ffffff" : "#000000";
-        g.fillRect(x, y, 3, 3);
-      }
-    g.globalAlpha = 1;
+  const half = (comp?.size || 0) / 2;
+  const inner = half - (comp?.border || 1);
 
-    // Шов с замками. Три зуба на сторону — как у обычного мата.
-    const seam = (horizontal) => {
-      g.save();
-      if(!horizontal){ g.translate(S, 0); g.rotate(Math.PI / 2); }
-      g.strokeStyle = CSS.matDark;
-      g.lineWidth = S * 0.012;
-      g.beginPath();
-      g.moveTo(0, 0);
-      const teeth = 3, step = S / (teeth * 2 + 1), r = step * 0.44;
-      let x = 0;
-      for(let i = 0; i < teeth; i++){
-        x += step;
-        g.lineTo(x, 0);
-        g.arc(x + r, 0, r, Math.PI, 0, i % 2 === 0);
-        x += r * 2;
-      }
-      g.lineTo(S, 0);
-      g.stroke();
-      // Блик по верхней кромке шва — маты толстые, край ловит свет.
-      g.strokeStyle = CSS.matEdge;
-      g.lineWidth = S * 0.005;
-      g.stroke();
-      g.restore();
-    };
-    seam(true);
-    seam(false);
-  });
+  // Заливка мат за матом.
+  for(let i = 0; i < L; i++){
+    for(let j = 0; j < D; j++){
+      const cx = -L / 2 + i + 0.5, cz = -D / 2 + j + 0.5;
+      const inSquare = half > 0 && Math.abs(cx) < half && Math.abs(cz) < half;
+      const isBorder = inSquare && (Math.abs(cx) > inner || Math.abs(cz) > inner);
+      g.fillStyle = isBorder ? CSS.matRed : CSS.mat;
+      g.fillRect(i * PX, j * PX, PX, PX);
+    }
+  }
+
+  // Мелкое тиснение: у матов рифлёная поверхность, без неё пол
+  // выглядит как залитый краской лист.
+  g.globalAlpha = 0.045;
+  for(let y = 0; y < c.height; y += 6)
+    for(let x = 0; x < c.width; x += 6){
+      g.fillStyle = (x + y) % 12 ? "#ffffff" : "#000000";
+      g.fillRect(x, y, 3, 3);
+    }
+  g.globalAlpha = 1;
+
+  // Шов с замками между соседними матами. Зубья и делают пол пазловым:
+  // без них это просто клетка, нарисованная на линолеуме.
+  const teeth = 3;
+  function seam(x0, y0, vertical, dark){
+    g.save();
+    g.translate(x0, y0);
+    if(vertical) g.rotate(Math.PI / 2);
+    const step = PX / (teeth * 2 + 1), r = step * 0.44;
+    g.beginPath();
+    g.moveTo(0, 0);
+    let x = 0;
+    for(let i = 0; i < teeth; i++){
+      x += step;
+      g.lineTo(x, 0);
+      g.arc(x + r, 0, r, Math.PI, 0, i % 2 === 0);
+      x += r * 2;
+    }
+    g.lineTo(PX, 0);
+    g.strokeStyle = dark; g.lineWidth = PX * 0.05; g.stroke();
+    g.strokeStyle = CSS.matEdge; g.lineWidth = PX * 0.018; g.stroke();
+    g.restore();
+  }
+
+  // Цвет шва берём у мата, на границе которого он лежит.
+  const matAt = (i, j) => {
+    const cx = -L / 2 + i + 0.5, cz = -D / 2 + j + 0.5;
+    const inSquare = half > 0 && Math.abs(cx) < half && Math.abs(cz) < half;
+    return (inSquare && (Math.abs(cx) > inner || Math.abs(cz) > inner))
+      ? CSS.matRedDark : CSS.matDark;
+  };
+  for(let i = 0; i < L; i++)
+    for(let j = 1; j < D; j++) seam(i * PX, j * PX, false, matAt(i, j));
+  for(let j = 0; j < D; j++)
+    for(let i = 1; i < L; i++) seam(i * PX, j * PX, true, matAt(i, j));
+
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;   // одна картинка на весь пол
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  return t;
 }
 
 // Доски: колонны, плинтус, двери.
