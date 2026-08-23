@@ -5,7 +5,7 @@
 
 import * as THREE from "three";
 import { initRenderer, renderer, scene, lights, followShadow } from "./scene/renderer.js";
-import { initCamera, updateCamera, camera, screenAxes, setCameraMode, toggleCameraMode } from "./scene/camera.js";
+import { initCamera, updateCamera, camera, screenAxes, setCameraMode, toggleCameraMode, setBounds } from "./scene/camera.js";
 import { buildArena } from "./scene/arena.js";
 import { initInput, keys, took } from "./core/input.js";
 import { onUpdate, onRender, startLoop } from "./core/loop.js";
@@ -31,6 +31,9 @@ const logo = new THREE.TextureLoader().load("assets/logo.png");
 logo.colorSpace = THREE.SRGBColorSpace;
 
 const arena = buildArena(scene, DOJO, lights, logo);
+
+// Камера должна знать стены зала, чтобы не уезжать за них.
+setBounds({ x: DOJO.length / 2, z: DOJO.depth / 2, ceil: DOJO.wallHeight });
 
 /* ---- Экран входа ---- */
 

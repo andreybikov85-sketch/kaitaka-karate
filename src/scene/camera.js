@@ -64,11 +64,38 @@ export function screenAxes(){
     : { fx: 0, fz: -1, rx: 1, rz: 0, turnToMove: false }; // вперёд вглубь -Z, вправо +X
 }
 
+// Размеры зала, чтобы камера не уходила куда попало.
+//
+// Вид из-за спины идёт ИЗНУТРИ помещения, и камера обязана оставаться
+// в его стенах: за стеной она показала бы соседнюю комнату, которой нет.
+// Вид сбоку, наоборот, смотрит снаружи — стены для него односторонние
+// и не мешают, но и его придерживаем, чтобы зал не уезжал в туман.
+let bounds = null;
+
+export function setBounds(b){ bounds = b; }
+
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const target = new THREE.Vector3();
 
 export function updateCamera(dt, focus){
   const off = mode === "third" ? THIRD : SIDE;
   target.set(focus.x + off.x, off.y, focus.z + off.z);
+
+  if(bounds){
+    const m = 0.5;
+    // Вдоль зала придерживаем в обоих видах.
+    target.x = clamp(target.x, -bounds.x + m, bounds.x - m);
+    if(mode === "third"){
+      target.z = clamp(target.z, -bounds.z + m, bounds.z - m);
+      target.y = Math.min(target.y, bounds.ceil - 0.3);
+    } else {
+      // Сбоку расстояние до бойца держим постоянным, иначе он то крупный,
+      // то мелкий в зависимости от того, у какой стены стоит. Камере
+      // при этом можно и заходить в зал, и выходить за него: стены для
+      // неё односторонние и обзор не загораживают.
+      target.z = clamp(target.z, -bounds.z, bounds.z + off.z);
+    }
+  }
 
   // Экспоненциальное сглаживание, независимое от частоты кадров.
   // Наивное `pos += (target - pos) * k * dt` ведёт себя по-разному

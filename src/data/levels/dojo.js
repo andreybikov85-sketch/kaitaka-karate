@@ -69,12 +69,6 @@ export const DOJO = {
       { type: "radiator", x: LEFT + 0.14, y: 0.30, z, ry:  Math.PI / 2 }
     ])),
 
-    // Светильники в потолке, два ряда.
-    ...[-6, -3, 0, 3, 6].flatMap(x => ([
-      { type: "lamp", x, y: H - 0.02, z: -3 },
-      { type: "lamp", x, y: H - 0.02, z:  3 }
-    ])),
-
     // Стойка с поясами у правой стены.
     { type: "beltRack", x: RIGHT - 0.12, y: 1.75, z: -1.5, ry: -Math.PI / 2,
       belts: BELTS.filter(b => !b.stripe).map(b => b.color) },

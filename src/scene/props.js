@@ -136,23 +136,6 @@ function muralWall(o){
   return m;
 }
 
-/* ---- Круглый встроенный светильник ---- */
-
-function lamp(o){
-  const g = new THREE.Group();
-  g.add(new THREE.Mesh(
-    new THREE.CircleGeometry(0.13, 16),
-    new THREE.MeshBasicMaterial({ color: C.lamp })
-  ).rotateX(Math.PI / 2));
-  const rim = new THREE.Mesh(
-    new THREE.RingGeometry(0.13, 0.16, 16),
-    new THREE.MeshBasicMaterial({ color: 0xe4e8ea, side: THREE.DoubleSide })
-  );
-  rim.rotation.x = Math.PI / 2;
-  g.add(rim);
-  return g;
-}
-
 /* ---- Дверь ---- */
 
 function door(o){
@@ -242,5 +225,5 @@ function beltRack(o){
 
 export const PROPS = {
   column, radiator, window: window_, banner, mural: muralWall,
-  lamp, door, makiwara, bag, beltRack
+  door, makiwara, bag, beltRack
 };

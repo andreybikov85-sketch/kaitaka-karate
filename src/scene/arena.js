@@ -58,7 +58,14 @@ function floor(g, L, D){
 function walls(g, L, D, H){
   const t = wallTexture();
   t.repeat.set(L / 2.5, H / 2.5);
-  const wall = new THREE.MeshStandardMaterial({ map: t, roughness: .96, side: THREE.DoubleSide });
+
+  // Стены видны ТОЛЬКО изнутри — как и потолок.
+  //
+  // Зал маленький, и камера сбоку неизбежно оказывается за ближней стеной.
+  // Была бы стена двусторонней, она бы загородила весь зал: игрок смотрел
+  // бы в затылок штукатурке. Односторонняя стена для камеры снаружи просто
+  // исчезает, и зал виден как в разрезе.
+  const wall = new THREE.MeshStandardMaterial({ map: t, roughness: .96, side: THREE.FrontSide });
 
   const put = (w, x, z, ry) => {
     const p = new THREE.Mesh(new THREE.PlaneGeometry(w, H), wall);
@@ -84,6 +91,7 @@ function walls(g, L, D, H){
     p.rotation.y = ry;
     g.add(p);
   };
+  skirt.side = THREE.FrontSide;      // вместе со стеной
   sk(L, 0, -D / 2 + 0.01, 0);
   sk(L, 0,  D / 2 - 0.01, Math.PI);
   sk(D, -L / 2 + 0.01, 0,  Math.PI / 2);
