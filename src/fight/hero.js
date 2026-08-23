@@ -67,18 +67,30 @@ function realHero(ch, url, clips){
   const inner = ch.root.children[0];
   const baseY = inner.position.y;
 
-  // Клипы записаны из разных стоек: в обычной ходьбе лодыжка опускается
-  // ниже, чем в боевом подшаге. Замеряем каждый цикл и запоминаем поправку,
-  // иначе при смене режима боец повиснет над татами.
+  // Клипы записаны из разных стоек и с разной высотой таза: в ходьбе
+  // лодыжка опускается ниже, чем в боевом подшаге. Каждый цикл замеряется
+  // и подтягивается к ПОЛУ.
+  //
+  // Эталон — поза покоя, где подошва лежит на нуле. Раньше эталоном был
+  // самый низкий из клипов, и это работало, пока клипы не двигали таз
+  // по высоте. Как только высота таза вернулась в анимацию, все клипы
+  // выровнялись друг по другу — и дружно повисли в полуметре над полом.
+  // Поправку считаем не только циклам, но и приёмам: у приседания
+  // и падения таз записан на своей высоте, и без поправки боец
+  // проседает под маты.
+  //
+  // Прыжок исключён намеренно: его высоту считает игра, и клип трогать
+  // нельзя — поправка сложилась бы с настоящим подъёмом.
+  const refGround = ch.bindGround();
   const groundFix = {};
-  let refGround = null;
-  for(const name of Object.keys(LOOPS)){
-    if(!ch.actions[name]) continue;
-    const lo = ch.measureGround(name);
-    if(refGround === null || lo < refGround) refGround = lo;
-    groundFix[name] = lo;
+  for(const name of [...Object.keys(LOOPS), ...Object.keys(MOVES)]){
+    if(!ch.actions[name] || name === "jump") continue;
+    groundFix[name] = refGround - ch.measureGround(name);
   }
-  for(const k in groundFix) groundFix[k] = refGround - groundFix[k];
+  // Поправка начинается с нуля и нарастает вместе с клипом. Если выставить
+  // её сразу, первые кадры получат полную поправку на ещё не начавшуюся
+  // анимацию — и боец провалится под пол на те самые полметра.
+  let groundY = 0;
 
   function applyMode(m){ mode = MODES[m] || mode; }
   applyMode(DEFAULT_MODE);
@@ -220,15 +232,32 @@ function realHero(ch, url, clips){
       // Окно связки истекло — комбинация сбрасывается.
       if(sinceStrike >= CHAIN_WINDOW) chain = null;
 
-      if(ch.busy) return;
+      // Во время приёма посадку тоже подтягиваем — у приседания, отжимания
+      // и блока таз записан на своей высоте. Блок учитываем отдельно:
+      // он удерживается своим путём, и в active не попадает.
+      if(ch.busy){
+        const поза = active || (ch.held ? "block" : null);
+        if(cycleFromClips && поза && groundFix[поза] !== undefined){
+          groundY += (groundFix[поза] - groundY) * (1 - Math.exp(-12 * dt));
+          inner.position.y = baseY + groundY;
+        }
+        return;
+      }
 
       if(cycleFromClips){
         const { name, rate } = pickLoop(m);
         const a = ch.actions[name];
         if(a) a.timeScale = rate;
         ch.play(name);
-        // Выравниваем посадку под стойку текущего клипа.
-        inner.position.y = baseY + (groundFix[name] || 0);
+
+        // Посадка подтягивается ПЛАВНО, а не рывком.
+        //
+        // Переход между клипами занимает время: поза в эти кадры смешана
+        // из двух. Если менять поправку мгновенно, боец на миг проваливается
+        // под пол — на полметра при переходе со стойки на шаг.
+        const want = groundFix[name] || 0;
+        groundY += (want - groundY) * (1 - Math.exp(-12 * dt));
+        inner.position.y = baseY + groundY;
         return;
       }
       if(!rig.ok) return;

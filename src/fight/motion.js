@@ -13,7 +13,7 @@
 // он возвращает состояние движения.
 
 import * as THREE from "three";
-import { MOTION } from "./moves.js";
+import { MOTION, AIM } from "./moves.js";
 
 export function makeMotion(object, bounds){
   let vx = 0, vz = 0;          // горизонтальная скорость, м/с
@@ -21,6 +21,7 @@ export function makeMotion(object, bounds){
   let held = 0;                // сколько держат направление — для перехода на бег
   let face = Math.PI / 2;      // куда смотрит
   let faceTarget = face;
+  let aiming = false;          // доворачиваемся к цели — обычное правило не мешает
 
   const pos = object.position;
 
@@ -39,6 +40,14 @@ export function makeMotion(object, bounds){
 
     // Остановить намертво — на удар, на блок, на конец этапа.
     halt(){ vx = 0; vz = 0; held = 0; },
+
+    // Довернуться к точке. Нужен при ударе: без доворота ребёнок бьёт
+    // в пустоту, особенно в виде сбоку, где взгляд заперт влево-вправо,
+    // а цель может стоять по глубине.
+    faceToward(x, z){
+      faceTarget = Math.atan2(x - pos.x, z - pos.z);
+      aiming = true;
+    },
 
     // dir: направление в мире, {x, z}, длина 0..1. Ноль — стоять.
     // cfg: { walk, run, lockFacing, frozen }
@@ -74,19 +83,29 @@ export function makeMotion(object, bounds){
       pos.x = clamp(pos.x, -bounds.x, bounds.x);
       pos.z = clamp(pos.z, -bounds.z, bounds.z);
 
-      // Куда смотреть. В кумитэ взгляд заперт: от противника не
-      // отворачиваются, вперёд идут лицом, назад пятятся.
-      if(wants && !cfg.lockFacing) faceTarget = Math.atan2(dir.x, dir.z);
-      else if(wants && cfg.lockFacing && Math.abs(dir.x) > 0.1)
-        faceTarget = dir.x > 0 ? Math.PI / 2 : -Math.PI / 2;
+      // Куда смотреть.
+      //
+      // lockFacing — взгляд держится влево-вправо и никогда не уходит
+      // в глубину. Так устроен вид сбоку: боец не должен поворачиваться
+      // спиной к экрану, иначе не видно ни его, ни того, что он делает.
+      //
+      // Доворот к цели сильнее этого правила: он для того и нужен, чтобы
+      // достать снаряд или противника, стоящего по глубине.
+      if(!aiming){
+        if(wants && !cfg.lockFacing) faceTarget = Math.atan2(dir.x, dir.z);
+        else if(wants && cfg.lockFacing && Math.abs(dir.x) > 0.1)
+          faceTarget = dir.x > 0 ? Math.PI / 2 : -Math.PI / 2;
+      }
 
       // Плавный разворот по кратчайшей дуге: мгновенный поворот на 180°
       // читается как подмена кадра, а не как движение.
       let d = faceTarget - face;
       while(d >  Math.PI) d -= Math.PI * 2;
       while(d < -Math.PI) d += Math.PI * 2;
-      face += d * (1 - Math.exp(-MOTION.turn * dt));
+      const turnRate = aiming ? AIM.turn : MOTION.turn;
+      face += d * (1 - Math.exp(-turnRate * dt));
       object.rotation.y = face;
+      if(aiming && Math.abs(d) < 0.05) aiming = false;   // довернулись
 
       // Идёт ли спиной вперёд — от этого зависит цикл шага.
       const backward = this.speed > 0.05 &&

@@ -174,6 +174,25 @@ export class Character {
     return true;
   }
 
+  // Высота стопы в позе покоя — эталон «подошва на полу».
+  //
+  // При загрузке модель ставится так, что низ габаритов лежит на нуле,
+  // то есть подошва касается пола. Лодыжка при этом оказывается сантиметрах
+  // в десяти выше. Это и есть высота, к которой надо приводить все клипы.
+  bindGround(){
+    this.mixer.stopAllAction();
+    this.root.updateMatrixWorld(true);
+    const v = new THREE.Vector3();
+    let lo = Infinity;
+    this.model.traverse(o => {
+      if(!o.isBone) return;
+      if(!/(Left|Right)Foot$/.test(o.name.replace(/^mixamorig:?/, ""))) return;
+      o.getWorldPosition(v);
+      lo = Math.min(lo, v.y - this.root.position.y);
+    });
+    return lo === Infinity ? 0 : lo;
+  }
+
   // На какой высоте оказывается самая нижняя стопа в этом клипе.
   //
   // Клипы записаны из разных стоек: в обычной ходьбе лодыжка опускается
@@ -196,8 +215,10 @@ export class Character {
     const dur = a.getClip().duration;
     const v = new THREE.Vector3();
     let lo = Infinity;
-    for(let i = 0; i < 24; i++){
-      a.time = dur * i / 23;
+    // Шестьдесят проб, а не два десятка: у отжимания и приседания самая
+    // низкая точка проходится быстро, и редкий замер её проскакивает.
+    for(let i = 0; i < 60; i++){
+      a.time = dur * i / 59;
       this.mixer.update(0);
       this.root.updateMatrixWorld(true);
       for(const f of feet){ f.getWorldPosition(v); lo = Math.min(lo, v.y - this.root.position.y); }
@@ -392,10 +413,17 @@ export async function loadClip(ch, name, url, secs){
     if(!clip) throw new Error("В файле нет анимации: " + url);
   }
 
-  // Дорожки иногда двигают корень целиком — персонаж уезжает по сцене
-  // сам. Позицией героя управляет игра, а не клип, поэтому смещение корня
-  // выбрасываем, оставляя только повороты костей.
-  clip.tracks = clip.tracks.filter(t => !/Hips\.position$/.test(t.name));
+  // Смещение корня по горизонтали убираем: позицией героя управляет игра,
+  // иначе персонаж уезжает по залу сам, по траектории аниматора.
+  //
+  // А вот ВЫСОТУ таза оставляем. Выбрасывать её целиком нельзя: у приседания
+  // именно опускание таза и есть приседание, у отжимания — опускание корпуса,
+  // у падения — падение. Без неё боец сгибает ноги, не опускаясь.
+  for(const t of clip.tracks){
+    if(!/Hips\.position$/.test(t.name)) continue;
+    const v = t.values, x0 = v[0], z0 = v[2];
+    for(let i = 0; i < v.length; i += 3){ v[i] = x0; v[i + 2] = z0; }
+  }
 
   ch.addClip(name, clip, secs);
   return clip;

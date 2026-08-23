@@ -18,7 +18,7 @@ import { renderPortrait } from "./ui/portrait.js";
 import { makeTraining, STATE } from "./stages/training.js";
 import { makeTaskUI } from "./ui/task.js";
 import { DOJO } from "./data/levels/dojo.js";
-import { MODES } from "./fight/moves.js";
+import { MODES, AIM } from "./fight/moves.js";
 import { BELTS } from "./data/belts.js";
 
 const ZERO = { x: 0, z: 0 };
@@ -101,7 +101,7 @@ async function begin(p){
     if(sensei) sensei.release();
     stage.begin();
   }, face);
-  const stage = makeTraining(DOJO, arena.userData.targets, ui);
+  const stage = makeTraining(DOJO, arena.userData.targets, ui, scene);
 
   document.getElementById("done-go").addEventListener("click", () => location.reload());
 
@@ -119,6 +119,18 @@ async function begin(p){
     z: DOJO.depth / 2 - 0.6
   });
   let move = { speed: 0, backward: false, airborne: false, running: false };
+
+  // Автодоворот к ближайшей цели при ударе. Правило проекта: без него
+  // ребёнок постоянно бьёт в пустоту — особенно в виде сбоку, где взгляд
+  // заперт влево-вправо, а снаряд может стоять по глубине.
+  function aimAtTarget(){
+    let best = null, bd = AIM.radius;
+    for(const t of DOJO.targets || []){
+      const d = Math.hypot(t.x - pos.x, t.z - pos.z);
+      if(d < bd){ bd = d; best = t; }
+    }
+    if(best) motion.faceToward(best.x, best.z);
+  }
 
   onUpdate(dt => {
     // Пока сэнсэй объясняет, боец слушает: управление не работает,
@@ -146,8 +158,8 @@ async function begin(p){
 
     // Удары разбираем ДО движения. Порядок важен: если сначала обработать
     // движение, только что начатый удар собьётся в стойку в том же кадре.
-    if(took("kick"))  hero.act("kick");
-    if(took("punch")) hero.attack();     // связка: цуки → хук → колено
+    if(took("kick")  && hero.act("kick")) aimAtTarget();
+    if(took("punch") && hero.attack())    aimAtTarget();
     if(took("view"))  showView(toggleCameraMode());
     if(took("mode"))  showMode(hero.toggleMode());
     if(took("jump") && !hero.busy) motion.jump();
@@ -164,10 +176,13 @@ async function begin(p){
     dir.x = a.fx * fwd + a.rx * side;
     dir.z = a.fz * fwd + a.rz * side;
 
-    // В виде из-за спины боец разворачивается по ходу движения,
-    // в виде сбоку взгляд ведёт себя по правилам режима.
+    // В виде из-за спины боец разворачивается по ходу движения целиком.
+    // В виде сбоку взгляд заперт влево-вправо ВСЕГДА, в обоих режимах:
+    // повернувшись спиной к экрану, боец загораживает сам себя, и не видно
+    // ни его, ни того, что он делает. К цели по глубине он доворачивается
+    // не поворотом корпуса, а автодоворотом в момент удара.
     const cfg = hero.motionCfg(move.backward);
-    cfg.lockFacing = a.turnToMove ? false : cfg.lockFacing;
+    cfg.lockFacing = !a.turnToMove;
     cfg.frozen = hero.busy;            // удар и блок держат на месте
 
     move = motion.update(dt, dir, cfg);
