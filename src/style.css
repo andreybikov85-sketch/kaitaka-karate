@@ -6,6 +6,7 @@
   --club:#3f3a8c;    /* индиго КАЙТАКА */
   --gold:#e8b647;
   --gi:#f2ede2;
+  --green:#2f8f4e;   /* спокойный режим — тренировка */
   --night:#141824;
   --night-2:#1d2333;
 }
@@ -73,23 +74,31 @@ html, body{
 #view-btn:active{ background:var(--club); }
 #view-icon{ font-size:15px; color:var(--gold); line-height:1; }
 
-/* Режим движения. Цвет несёт смысл: красный киокушинкай — поединок,
-   спокойный индиго клуба — тренировка. Видно, не читая надписи. */
+/* Режим движения — кружок с фигуркой.
+   Поза и цвет несут смысл вдвоём: спокойно стоит на зелёном — тренировка,
+   в боевой стойке на красном — поединок. Понятно и тому, кто не читает. */
 #mode{
   position:absolute; top:58px; right:16px;
-  background:rgba(20,24,36,.72);
-  border:1px solid rgba(232,182,71,.35);
-  border-left:3px solid var(--kyoku);
-  border-radius:0 6px 6px 0;
-  padding:8px 14px;
-  color:var(--gi);
-  font:inherit; font-size:12px; font-weight:700; letter-spacing:.12em;
+  width:46px; height:46px;
+  display:grid; place-items:center;
+  padding:0;
+  border:2px solid rgba(255,255,255,.55);
+  border-radius:50%;
+  color:#fff;
   cursor:pointer;
-  backdrop-filter:blur(6px);
+  box-shadow:0 3px 10px rgba(0,0,0,.45);
+  transition:background .18s;
 }
-#mode[data-mode="training"]{ border-left-color:var(--club); }
-#mode:active{ background:var(--club); }
-#mode-jp{ margin-right:7px; font-size:14px; }
+#mode svg{ width:28px; height:28px; display:block; }
+
+#mode[data-mode="kumite"]{   background:var(--kyoku); }
+#mode[data-mode="training"]{ background:var(--green); }
+
+/* Показываем ту фигурку, которая отвечает режиму. */
+#mode[data-mode="kumite"]   #fig-stand,
+#mode[data-mode="training"] #fig-kamae{ display:none; }
+
+#mode:active{ filter:brightness(1.25); }
 
 /* ---- Экранное управление: раскладка джойстика Dendy ----
    Крестовина слева, кнопки действий справа по дуге под большой палец.
@@ -377,21 +386,12 @@ html, body{
   #belt{ padding:6px 10px; font-size:13px; gap:7px; }
   #belt-name{ display:none; }          /* название пояса длинное, ранга хватает */
 
-  /* Подписи прячем — остаются значок и кандзи. Смысл читается,
-     а места кнопки занимают втрое меньше и встают в один ряд. */
-  #view-text, #mode-text{ display:none; }
-  #mode-jp{ margin-right:0; }
+  /* Подпись у вида прячем — остаётся значок. Кнопка режима и так
+     кружок, ей подпись не нужна вовсе. Обе встают в один ряд. */
+  #view-text{ display:none; }
   #view-btn{ padding:7px 10px; }
-  #mode{
-    top:64px; right:64px; padding:7px 10px;
-    border-radius:6px 0 0 6px;
-    border-left:1px solid rgba(232,182,71,.35);
-    border-right:3px solid var(--kyoku);
-  }
-  #mode[data-mode="training"]{
-    border-right-color:var(--club);
-    border-left-color:rgba(232,182,71,.35);
-  }
+  #mode{ top:60px; right:62px; width:42px; height:42px; }
+  #mode svg{ width:26px; height:26px; }
 
   /* Управление жмётся: на узком экране между крестовиной и кнопками
      места всего ничего, и в полный размер они наезжают друг на друга. */

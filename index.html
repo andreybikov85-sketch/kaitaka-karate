@@ -39,8 +39,26 @@
     <span id="view-icon">◱</span><span id="view-text">СБОКУ</span>
   </button>
 
-  <button id="mode" data-k="mode" data-mode="kumite" title="Тренировка или кумитэ (T)">
-    <span id="mode-jp">組手</span><span id="mode-text">КУМИТЭ</span>
+  <!-- Режим движения. Фигурка понятнее надписи: стоит — тренировка,
+       в стойке — поединок. Читается, не зная ни русского, ни японского. -->
+  <button id="mode" data-k="mode" data-mode="kumite"
+          title="Тренировка или кумитэ (T)" aria-label="Режим: кумитэ">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <g id="fig-stand" fill="none" stroke="currentColor" stroke-width="1.7"
+         stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="4.6" r="2.5" fill="currentColor" stroke="none"/>
+        <path d="M12 7.6V15"/>
+        <path d="M12 9.4 8.9 14.2M12 9.4l3.1 4.8"/>
+        <path d="M12 15l-1.9 6M12 15l1.9 6"/>
+      </g>
+      <g id="fig-kamae" fill="none" stroke="currentColor" stroke-width="1.7"
+         stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12.6" cy="4.6" r="2.5" fill="currentColor" stroke="none"/>
+        <path d="M12.6 7.4 11.6 14.4"/>
+        <path d="M12.2 9 8.6 11.2l2.6 1.4M12.4 9.4l3.5 2.4-2.4 1.5"/>
+        <path d="M11.6 14.4 7.9 17.6 7.2 21.2M11.6 14.4l4.3 2.6.9 4.2"/>
+      </g>
+    </svg>
   </button>
 
   <!-- Панель задания: снаряды и время -->

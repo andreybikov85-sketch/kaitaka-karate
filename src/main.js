@@ -55,14 +55,12 @@ function showView(m){
 }
 
 const modeEl = document.getElementById("mode");
-const modeJp = document.getElementById("mode-jp");
-const modeText = document.getElementById("mode-text");
 function showMode(m){
-  // Кандзи и подпись — разными кусками: на узком экране подпись прячется,
-  // а иероглиф остаётся. Так кнопка ужимается, не теряя смысла.
-  modeJp.textContent = m.jp;
-  modeText.textContent = m.label.toUpperCase();
+  // Всё оформление кнопки висит на одном признаке: и цвет кружка,
+  // и то, какая фигурка показана. Подписи нет — поза говорит сама.
   modeEl.dataset.mode = m === MODES.kumite ? "kumite" : "training";
+  modeEl.setAttribute("aria-label", "Режим: " + m.label);
+  modeEl.title = "Сейчас " + m.label + " · сменить (T)";
 }
 
 /* ---- Игра ---- */
