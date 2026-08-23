@@ -89,34 +89,58 @@ html, body{
 }
 #mode[data-mode="training"]{ border-left-color:var(--club); }
 #mode:active{ background:var(--club); }
+#mode-jp{ margin-right:7px; font-size:14px; }
 
-/* Экранные кнопки — только для тача. На компьютере есть клавиатура. */
-#pad{ position:absolute; left:20px; bottom:20px; display:none; }
-#acts{ position:absolute; right:20px; bottom:20px; display:none; gap:12px; align-items:flex-end; }
+/* ---- Экранное управление: раскладка джойстика Dendy ----
+   Крестовина слева, кнопки действий справа по дуге под большой палец.
+   Показывается только на тач-экранах: на компьютере есть клавиатура. */
+
+#pad{ position:absolute; left:16px; bottom:18px; display:none; }
+#acts{ position:absolute; right:16px; bottom:18px; display:none;
+       width:200px; height:196px; }
 @media (pointer:coarse){
-  #pad{ display:block; }
-  #acts{ display:flex; }
+  #pad, #acts{ display:block; }
   #hint{ display:none; }
 }
 
-/* Гери крупнее и ниже цуки — так пальцу не надо целиться, кнопки
-   различаются на ощупь, а не только по надписи. */
-.act{ width:86px; height:86px; border-radius:50%; font-size:14px; font-weight:700; letter-spacing:.08em; }
-.act[data-k="kick"]{ width:100px; height:100px; font-size:15px; }
-
+/* Крестовина: сплошной крест на тёмной площадке, как на джойстике,
+   а не четыре отдельные кнопки. */
 .dpad{
   display:grid;
-  grid-template-columns:repeat(3, 54px);
-  grid-template-rows:repeat(3, 54px);
-  gap:5px;
+  grid-template-columns:repeat(3, 52px);
+  grid-template-rows:repeat(3, 52px);
+  background:rgba(12,15,24,.55);
+  border-radius:14px;
+  padding:7px;
 }
+.dpad .k{ border:none; background:rgba(63,58,140,.72); border-radius:3px; }
+.dpad .k[data-k="up"]{    border-radius:9px 9px 0 0; }
+.dpad .k[data-k="down"]{  border-radius:0 0 9px 9px; }
+.dpad .k[data-k="left"]{  border-radius:9px 0 0 9px; }
+.dpad .k[data-k="right"]{ border-radius:0 9px 9px 0; }
+/* Середина креста — не кнопка, а перемычка: без неё крест распадается. */
+.dpad span:nth-child(5){ background:rgba(63,58,140,.72); }
+
+/* Кнопки действий по дуге: большой палец ходит из нижнего правого угла,
+   поэтому они лежат на окружности вокруг него, а не в ряд.
+   Цуки внизу под пальцем — им бьют чаще всего. */
+.act{
+  position:absolute;
+  border-radius:50%;
+  font-size:13px; font-weight:700; letter-spacing:.06em;
+  border:2px solid rgba(232,182,71,.45);
+  background:rgba(63,58,140,.72);
+}
+.act[data-k="punch"]{ right:4px;  bottom:4px;   width:88px; height:88px; }
+.act[data-k="kick"] { right:98px; bottom:52px;  width:88px; height:88px; }
+.act[data-k="block"]{ right:14px; bottom:106px; width:72px; height:72px;
+                      background:rgba(20,24,36,.72); font-size:12px; }
+
 .k{
-  background:rgba(63,58,140,.55);
-  border:1px solid rgba(232,182,71,.4);
-  border-radius:8px;
   color:var(--gi);
   font-size:19px;
   cursor:pointer;
+  -webkit-user-select:none; user-select:none;
 }
 .k:active{ background:var(--kyoku); }
 
@@ -321,3 +345,59 @@ html, body{
 }
 #begin:hover:not(:disabled){ filter:brightness(1.16); }
 #begin:disabled{ opacity:.3; cursor:default; }
+
+/* ---- Экраны поуже настольного ----
+   Стоит В КОНЦЕ файла намеренно: при одинаковой силе правил побеждает
+   то, что ниже. Стояло выше — обычные правила панели задания перебивали
+   эти, и раскладка не менялась.
+
+   Два уровня. Первый — как только пояс, задание и кнопки перестают
+   помещаться в один ряд (телефон боком, узкий планшет). Второй — когда
+   и после этого тесно (телефон вертикально). */
+
+@media (max-width: 820px){
+  /* Задание уходит наверх во всю ширину, остальное под него. */
+  #task{
+    top:8px; left:8px; right:8px;
+    transform:none;
+    justify-content:space-between;
+    padding:8px 12px;
+  }
+  #hud{ top:64px; left:8px; }
+  #view-btn{ top:64px; right:8px; }
+  #mode{ top:106px; right:8px; }
+}
+
+@media (max-width: 620px){
+  #task{ padding:7px 11px; }
+  #task-bars{ gap:6px; }
+  .bar{ width:46px; height:18px; }
+  #task-timer{ font-size:17px; min-width:46px; }
+
+  #belt{ padding:6px 10px; font-size:13px; gap:7px; }
+  #belt-name{ display:none; }          /* название пояса длинное, ранга хватает */
+
+  /* Подписи прячем — остаются значок и кандзи. Смысл читается,
+     а места кнопки занимают втрое меньше и встают в один ряд. */
+  #view-text, #mode-text{ display:none; }
+  #mode-jp{ margin-right:0; }
+  #view-btn{ padding:7px 10px; }
+  #mode{
+    top:64px; right:64px; padding:7px 10px;
+    border-radius:6px 0 0 6px;
+    border-left:1px solid rgba(232,182,71,.35);
+    border-right:3px solid var(--kyoku);
+  }
+  #mode[data-mode="training"]{
+    border-right-color:var(--club);
+    border-left-color:rgba(232,182,71,.35);
+  }
+
+  /* Управление жмётся: на узком экране между крестовиной и кнопками
+     места всего ничего, и в полный размер они наезжают друг на друга. */
+  .dpad{ grid-template-columns:repeat(3, 46px); grid-template-rows:repeat(3, 46px); }
+  #acts{ width:172px; height:178px; }
+  .act[data-k="punch"]{ right:4px;  bottom:4px;  width:82px; height:82px; }
+  .act[data-k="kick"] { right:86px; bottom:46px; width:82px; height:82px; }
+  .act[data-k="block"]{ right:12px; bottom:94px; width:64px; height:64px; }
+}

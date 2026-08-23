@@ -55,8 +55,13 @@ function showView(m){
 }
 
 const modeEl = document.getElementById("mode");
+const modeJp = document.getElementById("mode-jp");
+const modeText = document.getElementById("mode-text");
 function showMode(m){
-  modeEl.textContent = m.jp + "  " + m.label.toUpperCase();
+  // Кандзи и подпись — разными кусками: на узком экране подпись прячется,
+  // а иероглиф остаётся. Так кнопка ужимается, не теряя смысла.
+  modeJp.textContent = m.jp;
+  modeText.textContent = m.label.toUpperCase();
   modeEl.dataset.mode = m === MODES.kumite ? "kumite" : "training";
 }
 
