@@ -57,7 +57,8 @@ export const MOVES = {
 // клипа под свою скорость движения, иначе ноги перебирают отдельно от тела
 // и персонаж катится по татами.
 export const LOOPS = {
-  idle: {},
+  idle:  {},                     // боевая стойка: кулаки подняты
+  stand: {},                     // спокойная стойка: руки вдоль тела
   walk: { groundSpeed: 1.02 },   // обычная ходьба
   run:  { groundSpeed: 2.68 },   // бег, замерено на персонаже
   step: { groundSpeed: 0.55 },   // боевой подшаг: короче и осторожнее
@@ -82,14 +83,38 @@ export const BACK_FACTOR = 0.75;
 // пятишься. В тренировке ходят свободно, как удобнее.
 // speed — обычный ход, run — бег. В кумитэ бега нет: по татами в поединке
 // не носятся, там подшагивают. Поэтому run у него null.
+// actions — что висит на четырёх кнопках действий. Набор свой у каждого
+// режима: в зале отрабатывают физподготовку, в поединке бьют. Кнопки
+// на экране перерисовываются при переключении, клавиши остаются те же:
+// J, K, L и пробел.
 export const MODES = {
   // Бег 3.8, а не быстрее: у ребёнка ростом 1.42 это уже хороший бег,
   // а на большей скорости он проскакивает мимо снаряда и не может
   // остановиться там, где нужно.
-  training: { label: "тренировка", jp: "稽古", idle: "idle", move: "walk", back: "back",
-              speed: 2.2, run: 3.8, lock: false },
-  kumite:   { label: "кумитэ",     jp: "組手", idle: "idle", move: "step", back: "back",
-              speed: 1.5, run: null, lock: true  }
+  training: {
+    label: "тренировка", jp: "稽古",
+    idle: "stand",                       // спокойная стойка, руки вдоль тела
+    move: "walk", back: "back",
+    speed: 2.2, run: 3.8, lock: false,
+    actions: [
+      { move: "squat",  label: "ПРИСЕД" },
+      { move: "situp",  label: "ПРЕСС" },
+      { move: "pushup", label: "ОТЖИМ" },
+      { move: "jump",   label: "ПРЫЖОК", jump: true }
+    ]
+  },
+  kumite: {
+    label: "кумитэ", jp: "組手",
+    idle: "idle",                        // боевая стойка, кулаки подняты
+    move: "step", back: "back",
+    speed: 1.5, run: null, lock: true,
+    actions: [
+      { move: "punch", label: "ЦУКИ",   chain: true },
+      { move: "kick",  label: "МАВАСИ" },
+      { move: "block", label: "БЛОК",   hold: true },
+      { move: "knee",  label: "ХИДЗА" }
+    ]
+  }
 };
 
 // ПЕРЕМЕЩЕНИЕ.

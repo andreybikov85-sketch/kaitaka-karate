@@ -55,16 +55,28 @@ function showView(m){
   saveProfile();
   viewIcon.textContent = m === "third" ? "◰" : "◱";
   viewText.textContent = m === "third" ? "ИЗ-ЗА СПИНЫ" : "СБОКУ";
-  hint.textContent = DOJO.tip + "  ·  V — сменить вид";
 }
 
 const modeEl = document.getElementById("mode");
+const actBtns = [...document.querySelectorAll(".act")];
+
 function showMode(m){
   // Всё оформление кнопки висит на одном признаке: и цвет кружка,
   // и то, какая фигурка показана. Подписи нет — поза говорит сама.
   modeEl.dataset.mode = m === MODES.kumite ? "kumite" : "training";
   modeEl.setAttribute("aria-label", "Режим: " + m.label);
   modeEl.title = "Сейчас " + m.label + " · сменить (T)";
+
+  // Кнопки действий перерисовываются под режим: в зале физподготовка,
+  // в поединке удары. Клавиши при этом не меняются.
+  const acts = m.actions || [];
+  for(const btn of actBtns){
+    const a = acts[+btn.dataset.slot];
+    btn.textContent = a ? a.label : "";
+    btn.style.display = a ? "" : "none";
+  }
+  hint.textContent = DOJO.tip.replace("{приёмы}",
+    acts.map((a, i) => ["J", "K", "L", "пробел"][i] + " — " + a.label.toLowerCase()).join(" · "));
 }
 
 /* ---- Игра ---- */
@@ -156,16 +168,22 @@ async function begin(p){
       return;
     }
 
-    // Удары разбираем ДО движения. Порядок важен: если сначала обработать
+    // Действия разбираем ДО движения. Порядок важен: если сначала обработать
     // движение, только что начатый удар собьётся в стойку в том же кадре.
-    if(took("kick")  && hero.act("kick")) aimAtTarget();
-    if(took("punch") && hero.attack())    aimAtTarget();
-    if(took("view"))  showView(toggleCameraMode());
-    if(took("mode"))  showMode(hero.toggleMode());
-    if(took("jump") && !hero.busy) motion.jump();
+    //
+    // Что на какой кнопке — решает режим. Кнопки четыре, клавиши те же
+    // (J, K, L, пробел), а набор приёмов свой у зала и у поединка.
+    const acts = hero.mode.actions || [];
+    for(let i = 0; i < acts.length; i++){
+      const a = acts[i], key = "a" + (i + 1);
+      if(a.hold){ hero.setBlock(keys[key]); continue; }
+      if(!took(key)) continue;
+      if(a.jump){ if(!hero.busy) motion.jump(); hero.act(a.move); continue; }
+      if(a.chain ? hero.attack() : hero.act(a.move)) aimAtTarget();
+    }
 
-    // Блок держится, пока нажата кнопка.
-    hero.setBlock(keys.block);
+    if(took("view")) showView(toggleCameraMode());
+    if(took("mode")) showMode(hero.toggleMode());
 
     // Стрелки задают направление относительно ЭКРАНА, а не мира: вверх —
     // это всегда «от игрока вглубь», в каком бы виде мы ни были. Иначе при
@@ -176,13 +194,16 @@ async function begin(p){
     dir.x = a.fx * fwd + a.rx * side;
     dir.z = a.fz * fwd + a.rz * side;
 
-    // В виде из-за спины боец разворачивается по ходу движения целиком.
-    // В виде сбоку взгляд заперт влево-вправо ВСЕГДА, в обоих режимах:
-    // повернувшись спиной к экрану, боец загораживает сам себя, и не видно
-    // ни его, ни того, что он делает. К цели по глубине он доворачивается
-    // не поворотом корпуса, а автодоворотом в момент удара.
+    // Куда смотреть при ходьбе.
+    //
+    // В виде из-за спины — всегда по ходу движения.
+    // В виде сбоку решает режим: в тренировке боец ходит свободно и
+    // разворачивается куда идёт, в кумитэ взгляд заперт влево-вправо —
+    // от противника не отворачиваются. Запирать его и в тренировке было
+    // ошибкой: боец шёл в глубину боком и выглядел так, будто его тащат.
+    // До цели он и так дотягивается автодоворотом в момент удара.
     const cfg = hero.motionCfg(move.backward);
-    cfg.lockFacing = !a.turnToMove;
+    cfg.lockFacing = a.turnToMove ? false : cfg.lockFacing;
     cfg.frozen = hero.busy;            // удар и блок держат на месте
 
     move = motion.update(dt, dir, cfg);

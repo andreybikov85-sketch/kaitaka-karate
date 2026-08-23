@@ -106,7 +106,7 @@ html, body{
 
 #pad{ position:absolute; left:16px; bottom:18px; display:none; }
 #acts{ position:absolute; right:16px; bottom:18px; display:none;
-       width:200px; height:196px; }
+       width:200px; height:230px; }
 @media (pointer:coarse){
   #pad, #acts{ display:block; }
   #hint{ display:none; }
@@ -140,10 +140,14 @@ html, body{
   border:2px solid rgba(232,182,71,.45);
   background:rgba(63,58,140,.72);
 }
-.act[data-k="punch"]{ right:4px;  bottom:4px;   width:88px; height:88px; }
-.act[data-k="kick"] { right:98px; bottom:52px;  width:88px; height:88px; }
-.act[data-k="block"]{ right:14px; bottom:106px; width:72px; height:72px;
-                      background:rgba(20,24,36,.72); font-size:12px; }
+/* Четыре кнопки по дуге вокруг большого пальца. Первая — под пальцем,
+   ею пользуются чаще всего; дальние по дуге меньше и реже нужны. */
+.act[data-slot="0"]{ right:4px;   bottom:4px;   width:88px; height:88px; }
+.act[data-slot="1"]{ right:98px;  bottom:52px;  width:88px; height:88px; }
+.act[data-slot="2"]{ right:14px;  bottom:106px; width:72px; height:72px;
+                     background:rgba(20,24,36,.72); font-size:12px; }
+.act[data-slot="3"]{ right:108px; bottom:150px; width:72px; height:72px;
+                     background:rgba(20,24,36,.72); font-size:12px; }
 
 .k{
   color:var(--gi);
@@ -396,8 +400,9 @@ html, body{
   /* Управление жмётся: на узком экране между крестовиной и кнопками
      места всего ничего, и в полный размер они наезжают друг на друга. */
   .dpad{ grid-template-columns:repeat(3, 46px); grid-template-rows:repeat(3, 46px); }
-  #acts{ width:172px; height:178px; }
-  .act[data-k="punch"]{ right:4px;  bottom:4px;  width:82px; height:82px; }
-  .act[data-k="kick"] { right:86px; bottom:46px; width:82px; height:82px; }
-  .act[data-k="block"]{ right:12px; bottom:94px; width:64px; height:64px; }
+  #acts{ width:172px; height:204px; }
+  .act[data-slot="0"]{ right:4px;  bottom:4px;   width:82px; height:82px; }
+  .act[data-slot="1"]{ right:88px; bottom:46px;  width:82px; height:82px; }
+  .act[data-slot="2"]{ right:12px; bottom:92px;  width:66px; height:66px; }
+  .act[data-slot="3"]{ right:94px; bottom:132px; width:66px; height:66px; }
 }

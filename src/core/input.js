@@ -10,10 +10,13 @@
 const MAP = {
   ArrowLeft:"left", ArrowRight:"right", ArrowUp:"up", ArrowDown:"down",
   KeyA:"left", KeyD:"right", KeyW:"up", KeyS:"down",
-  KeyJ:"punch", KeyZ:"punch",
-  KeyK:"kick",  KeyX:"kick",
-  KeyL:"block", KeyC:"block",
-  Space:"jump",
+  // Четыре кнопки действий. Что именно на них висит, решает режим
+  // (fight/moves.js): в кумитэ удары, в тренировке упражнения. Клавиши
+  // при этом не меняются — меняются только подписи на экранных кнопках.
+  KeyJ:"a1", KeyZ:"a1",
+  KeyK:"a2", KeyX:"a2",
+  KeyL:"a3", KeyC:"a3",
+  Space:"a4",
   Enter:"enter",
   KeyV:"view",
   KeyT:"mode",
