@@ -61,10 +61,16 @@
     </svg>
   </button>
 
-  <!-- Панель задания: снаряды и время -->
+  <!-- Панель хода работы: что делать, сколько сделано, сколько времени -->
   <div id="task" class="hidden">
-    <div id="task-bars"></div>
-    <div id="task-timer">1:00</div>
+    <div id="task-left">
+      <div id="task-text"></div>
+      <div id="task-bars"></div>
+    </div>
+    <div id="task-right">
+      <div id="task-note"></div>
+      <div id="task-timer">1:00</div>
+    </div>
   </div>
 
   <div id="hint">Стрелки — движение · J — цуки · K — гери</div>
@@ -116,6 +122,7 @@
 <div id="brief" class="hidden">
   <img id="brief-face" alt="Сэнсэй" hidden>
   <div class="who-said">先生　СЭНСЭЙ</div>
+  <div id="brief-no"></div>
   <div id="brief-text"></div>
   <button id="brief-go">ОСУ!</button>
 </div>

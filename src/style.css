@@ -161,7 +161,7 @@ html, body{
 
 #task{
   position:absolute; top:16px; left:50%; transform:translateX(-50%);
-  display:flex; align-items:center; gap:16px;
+  display:flex; align-items:center; gap:18px;
   background:rgba(20,24,36,.74);
   border:1px solid rgba(232,182,71,.35);
   border-radius:8px;
@@ -170,11 +170,16 @@ html, body{
 }
 #task.hidden{ display:none; }
 
-#task-bars{ display:flex; gap:9px; }
+#task-left{ display:flex; flex-direction:column; gap:6px; }
+#task-text{ font-size:13px; font-weight:700; letter-spacing:.14em; }
+#task-right{ display:flex; flex-direction:column; align-items:center; gap:1px; }
+#task-note{ font-size:11px; opacity:.55; letter-spacing:.08em; white-space:nowrap; }
+
+#task-bars{ display:flex; gap:6px; }
 
 .bar{
   position:relative;
-  width:62px; height:20px;
+  flex:1 1 26px; min-width:14px; max-width:62px; height:14px;
   background:rgba(0,0,0,.45);
   border:1px solid rgba(242,237,226,.22);
   border-radius:4px;
@@ -184,12 +189,6 @@ html, body{
   position:absolute; inset:0 auto 0 0; width:0;
   background:var(--kyoku);
   transition:width .12s linear;
-}
-.bar-num{
-  position:absolute; inset:0;
-  display:flex; align-items:center; justify-content:center;
-  font-size:12px; font-weight:700;
-  text-shadow:0 1px 2px rgba(0,0,0,.8);
 }
 .bar.full .bar-fill{ background:var(--gold); }
 .bar.full{ border-color:var(--gold); }
@@ -383,9 +382,10 @@ html, body{
 
 @media (max-width: 620px){
   #task{ padding:7px 11px; }
-  #task-bars{ gap:6px; }
-  .bar{ width:46px; height:18px; }
-  #task-timer{ font-size:17px; min-width:46px; }
+  #task-bars{ gap:4px; }
+  .bar{ max-width:34px; height:12px; }
+  #task-text{ font-size:11px; letter-spacing:.1em; }
+  #task-timer{ font-size:17px; min-width:44px; }
 
   #belt{ padding:6px 10px; font-size:13px; gap:7px; }
   #belt-name{ display:none; }          /* название пояса длинное, ранга хватает */
@@ -405,4 +405,10 @@ html, body{
   .act[data-slot="1"]{ right:88px; bottom:46px;  width:82px; height:82px; }
   .act[data-slot="2"]{ right:12px; bottom:92px;  width:66px; height:66px; }
   .act[data-slot="3"]{ right:94px; bottom:132px; width:66px; height:66px; }
+}
+
+/* Номер задания над словами сэнсэя */
+#brief-no{
+  font-size:12px; letter-spacing:.2em; opacity:.5;
+  margin-bottom:10px;
 }

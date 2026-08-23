@@ -15,9 +15,10 @@ import { makeHero } from "./fight/hero.js";
 import { makeMotion } from "./fight/motion.js";
 import { makeSensei } from "./fight/sensei.js";
 import { renderPortrait } from "./ui/portrait.js";
-import { makeTraining, STATE } from "./stages/training.js";
+import { makeChain, PHASE } from "./stages/chain.js";
 import { makeTaskUI } from "./ui/task.js";
 import { DOJO } from "./data/levels/dojo.js";
+import { BELT_TASKS, BELT_REWARD } from "./data/tasks.js";
 import { MODES, AIM } from "./fight/moves.js";
 import { BELTS } from "./data/belts.js";
 
@@ -55,6 +56,13 @@ function showView(m){
   saveProfile();
   viewIcon.textContent = m === "third" ? "◰" : "◱";
   viewText.textContent = m === "third" ? "ИЗ-ЗА СПИНЫ" : "СБОКУ";
+}
+
+// Пояс в панели наверху. Меняется, когда сэнсэй его вручает.
+function showBelt(b){
+  document.getElementById("belt-name").textContent = b.name;
+  document.getElementById("belt-rank").textContent = b.rank;
+  document.getElementById("belt-swatch").style.background = b.color;
 }
 
 const modeEl = document.getElementById("mode");
@@ -108,19 +116,37 @@ async function begin(p){
     sensei.brief(hero.object.position.x, hero.object.position.z);
   }
 
-  // Задание уровня: сэнсэй объясняет, дальше отсчёт.
-  const ui = makeTaskUI(DOJO, p.name, () => {
-    if(sensei) sensei.release();
-    stage.begin();
-  }, face);
-  const stage = makeTraining(DOJO, arena.userData.targets, ui, scene);
+  // Цепочка заданий: сэнсэй объясняет, ученик выполняет, сэнсэй отвечает.
+  const ui = makeTaskUI(p.name, face, {
+    begin(){ if(sensei) sensei.release(); chain.begin(); },
+    next(){
+      if(chain.phase === PHASE.BELT){ location.reload(); return; }
+      chain.next();
+      if(chain.phase === PHASE.BRIEF && sensei)
+        sensei.brief(hero.object.position.x, hero.object.position.z);
+    }
+  });
 
-  document.getElementById("done-go").addEventListener("click", () => location.reload());
+  const chain = makeChain(BELT_TASKS, {
+    level: DOJO, targets: arena.userData.targets, scene
+  }, {
+    brief: (t, no, всего) => ui.brief(t, no, всего),
+    play:  (hud, left) => ui.play(hud, left),
+    result: (won, words, t, no, всего) => ui.result(won, words, t, no, всего),
+    belt: () => {
+      // Пояс вручается за всю цепочку и сохраняется: путь должен
+      // оставаться пройденным, а не начинаться заново каждый запуск.
+      profile.beltIdx = BELT_REWARD;
+      saveProfile();
+      const b = BELTS[BELT_REWARD];
+      showBelt(b);
+      ui.belt(b);
+    }
+  });
+  chain.start();
 
   document.getElementById("hero-name").textContent = p.name;
-  document.getElementById("belt-name").textContent = belt.name;
-  document.getElementById("belt-rank").textContent = belt.rank;
-  document.getElementById("belt-swatch").style.background = belt.color;
+  showBelt(belt);
 
   const pos = hero.object.position;
 
@@ -144,11 +170,25 @@ async function begin(p){
     if(best) motion.faceToward(best.x, best.z);
   }
 
+  // Направление взгляда словом — этапу «повтори за мной» важно, куда
+  // боец реально повернулся, а не какая клавиша нажата.
+  function сторона(){
+    const y = ((motion.facing % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    if(y < Math.PI * 0.25 || y > Math.PI * 1.75) return "down";   // лицом к камере
+    if(y < Math.PI * 0.75) return "right";
+    if(y < Math.PI * 1.25) return "up";
+    return "left";
+  }
+
+  let начатоеДействие = null;    // какой приём начался в этом кадре
+
   onUpdate(dt => {
-    // Пока сэнсэй объясняет, боец слушает: управление не работает,
-    // но сцена живёт — сэнсэй ходит, камера едет.
-    if(stage.state === STATE.BRIEF){
-      if(took("enter")) ui.accept();
+    const работа = chain.phase === PHASE.PLAY;
+
+    // Пока сэнсэй говорит или показывает итог, управление молчит,
+    // но сцена живёт: сэнсэй ходит, камера едет.
+    if(!работа){
+      if(took("enter")){ ui.accept(); ui.nextFromKey(); }
       if(sensei) sensei.step(dt);
       move = motion.update(dt, ZERO, hero.motionCfg(false));
       hero.update(dt, move);
@@ -158,66 +198,52 @@ async function begin(p){
     }
     if(sensei) sensei.step(dt);
 
-    // Этап закончился — управление отдаём, но бой уже не идёт.
-    if(stage.state !== STATE.PLAY){
-      move = motion.update(dt, ZERO, hero.motionCfg(false));
-      hero.update(dt, move);
-      stage.update(dt, hero);            // снаряды докачиваются
-      followShadow(pos.x, pos.z);
-      updateCamera(dt, pos);
-      return;
-    }
-
     // Действия разбираем ДО движения. Порядок важен: если сначала обработать
     // движение, только что начатый удар собьётся в стойку в том же кадре.
     //
     // Что на какой кнопке — решает режим. Кнопки четыре, клавиши те же
     // (J, K, L, пробел), а набор приёмов свой у зала и у поединка.
+    начатоеДействие = null;
     const acts = hero.mode.actions || [];
     for(let i = 0; i < acts.length; i++){
       const a = acts[i], key = "a" + (i + 1);
       if(a.hold){ hero.setBlock(keys[key]); continue; }
       if(!took(key)) continue;
-      if(a.jump){ if(!hero.busy) motion.jump(); hero.act(a.move); continue; }
-      if(a.chain ? hero.attack() : hero.act(a.move)) aimAtTarget();
+      if(a.jump){
+        if(!hero.busy && motion.jump() && hero.act(a.move)) начатоеДействие = a.move;
+        continue;
+      }
+      if(a.chain ? hero.attack() : hero.act(a.move)){
+        начатоеДействие = a.move;
+        aimAtTarget();
+      }
     }
 
     if(took("view")) showView(toggleCameraMode());
     if(took("mode")) showMode(hero.toggleMode());
 
     // Стрелки задают направление относительно ЭКРАНА, а не мира: вверх —
-    // это всегда «от игрока вглубь», в каком бы виде мы ни были. Иначе при
-    // переключении камеры управление вывернулось бы наизнанку.
+    // это всегда «от игрока вглубь», в каком бы виде мы ни были.
     const a = screenAxes();
     const side = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
     const fwd  = (keys.up    ? 1 : 0) - (keys.down ? 1 : 0);
     dir.x = a.fx * fwd + a.rx * side;
     dir.z = a.fz * fwd + a.rz * side;
 
-    // Куда смотреть при ходьбе.
-    //
-    // В виде из-за спины — всегда по ходу движения.
-    // В виде сбоку решает режим: в тренировке боец ходит свободно и
-    // разворачивается куда идёт, в кумитэ взгляд заперт влево-вправо —
-    // от противника не отворачиваются. Запирать его и в тренировке было
-    // ошибкой: боец шёл в глубину боком и выглядел так, будто его тащат.
-    // До цели он и так дотягивается автодоворотом в момент удара.
     const cfg = hero.motionCfg(move.backward);
     cfg.lockFacing = a.turnToMove ? false : cfg.lockFacing;
 
     // Удар и блок держат на месте, а прыжок — нет: в воздухе стрелками
-    // можно править, куда приземлиться. Без этого прыжок ощущается
-    // как провал управления: нажал и ждёшь, пока отпустит.
+    // можно править, куда приземлиться.
     cfg.frozen = hero.busy && !move.airborne;
 
     move = motion.update(dt, dir, cfg);
     hero.update(dt, move);
 
-    // Попадания считаем ПОСЛЕ обновления героя: поза бьющей конечности
-    // должна быть уже нынешней, иначе удар засчитывается по вчерашнему
-    // положению руки.
+    // Этап считаем ПОСЛЕ обновления героя: поза бьющей конечности должна
+    // быть уже нынешней, иначе удар засчитывается по вчерашнему положению.
     hero.object.updateMatrixWorld(true);
-    stage.update(dt, hero);
+    chain.update(dt, { hero, motion, facing: сторона(), started: начатоеДействие });
 
     followShadow(pos.x, pos.z);
     updateCamera(dt, pos);
