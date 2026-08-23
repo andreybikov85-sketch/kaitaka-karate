@@ -7,7 +7,7 @@
 import * as THREE from "three";
 import { C } from "./palette.js";
 import { PROPS } from "./props.js";
-import { tatamiTexture, woodTexture, wallTexture } from "./textures.js";
+import { matTexture, woodTexture, wallTexture } from "./textures.js";
 
 let current = null;
 
@@ -15,21 +15,20 @@ export function buildArena(scene, level, lights, logo){
   if(current){ scene.remove(current); dispose(current); }
 
   const g = new THREE.Group();
-  const L = level.length, D = level.depth;
+  const L = level.length, D = level.depth, H = level.wallHeight || 2.9;
 
-  floor(g, level, L, D);
-  walls(g, level, L, D);
+  floor(g, L, D);
+  walls(g, L, D, H);
+  ceiling(g, L, D, H);
 
-  // Предметы с полем target — снаряды задания. Их отдаём наружу, чтобы
-  // этап мог по ним попадать и раскачивать их от ударов.
   const targets = [];
-
   for(const p of level.props || []){
     const make = PROPS[p.type];
     if(!make) continue;                      // неизвестный предмет — пропускаем молча
     const o = make({ ...p, logo });
     o.position.set(p.x || 0, p.y || 0, p.z || 0);
     if(p.ry) o.rotation.y = p.ry;
+    if(p.rx) o.rotation.x = p.rx;
     g.add(o);
     if(p.target !== undefined) targets[p.target] = o;
   }
@@ -41,59 +40,67 @@ export function buildArena(scene, level, lights, logo){
   return g;
 }
 
-function floor(g, level, L, D){
-  // Татами: одна плоскость с повторяющейся текстурой вместо десятков
-  // отдельных матов. Меньше объектов — меньше работы для видеокарты,
-  // а стыки получаются чётче, чем у составленных вплотную коробок.
-  const t = tatamiTexture();
-  t.repeat.set(L / 2, D / 2);
-  const mat = new THREE.Mesh(
+function floor(g, L, D){
+  // Пазловые маты одной плоскостью с повторяющейся текстурой: один повтор —
+  // один мат метр на метр. Десятки отдельных матов дали бы то же самое,
+  // но стоили бы видеокарте в сотню раз дороже.
+  const t = matTexture();
+  t.repeat.set(L, D);
+  const m = new THREE.Mesh(
     new THREE.PlaneGeometry(L, D),
-    new THREE.MeshStandardMaterial({ map: t, roughness: .96 })
+    new THREE.MeshStandardMaterial({ map: t, roughness: .82 })
   );
-  mat.rotation.x = -Math.PI / 2;
-  mat.receiveShadow = true;
-  g.add(mat);
-
-  // Дощатый пол по краям татами — граница зоны боя видна и без разметки.
-  const w = woodTexture();
-  w.repeat.set(L / 2, 2);
-  const wm = new THREE.MeshStandardMaterial({ map: w, roughness: .92 });
-  for(const s of [-1, 1]){
-    const strip = new THREE.Mesh(new THREE.PlaneGeometry(L, 3), wm);
-    strip.rotation.x = -Math.PI / 2;
-    strip.position.set(0, -0.01, s * (D / 2 + 1.5));
-    strip.receiveShadow = true;
-    g.add(strip);
-  }
+  m.rotation.x = -Math.PI / 2;
+  m.receiveShadow = true;
+  g.add(m);
 }
 
-function walls(g, level, L, D){
+function walls(g, L, D, H){
   const t = wallTexture();
-  t.repeat.set(L / 3, 1.4);
-  const wall = new THREE.MeshStandardMaterial({ map: t, roughness: .95 });
-  const H = level.wallHeight || 4.2;
+  t.repeat.set(L / 2.5, H / 2.5);
+  const wall = new THREE.MeshStandardMaterial({ map: t, roughness: .96, side: THREE.DoubleSide });
 
-  const back = new THREE.Mesh(new THREE.PlaneGeometry(L, H), wall);
-  back.position.set(0, H / 2, -(D / 2 + 3));
-  back.receiveShadow = true;
-  g.add(back);
+  const put = (w, x, z, ry) => {
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(w, H), wall);
+    p.position.set(x, H / 2, z);
+    p.rotation.y = ry;
+    p.receiveShadow = true;
+    g.add(p);
+    return p;
+  };
+  put(L, 0, -D / 2, 0);            // дальняя
+  put(L, 0,  D / 2, Math.PI);      // ближняя, к камере
+  put(D, -L / 2, 0,  Math.PI / 2); // левая
+  put(D,  L / 2, 0, -Math.PI / 2); // правая
 
-  // Тёмная панель понизу: об неё читается, где стена встречается с полом.
-  const skirt = new THREE.Mesh(
-    new THREE.PlaneGeometry(L, 0.5),
-    new THREE.MeshStandardMaterial({ color: C.night2, roughness: .9 })
+  // Тёмный деревянный плинтус по всему периметру — он на фото заметный
+  // и держит низ стены, иначе она «висит» над матами.
+  const wt = woodTexture();
+  wt.repeat.set(L / 2, 1);
+  const skirt = new THREE.MeshStandardMaterial({ map: wt, roughness: .85 });
+  const sk = (w, x, z, ry) => {
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.16), skirt);
+    p.position.set(x, 0.08, z);
+    p.rotation.y = ry;
+    g.add(p);
+  };
+  sk(L, 0, -D / 2 + 0.01, 0);
+  sk(L, 0,  D / 2 - 0.01, Math.PI);
+  sk(D, -L / 2 + 0.01, 0,  Math.PI / 2);
+  sk(D,  L / 2 - 0.01, 0, -Math.PI / 2);
+}
+
+function ceiling(g, L, D, H){
+  // Потолок односторонний: видно снизу, а сверху его как бы нет.
+  // Так вид сбоку смотрит в зал как в разрез, а вид из-за спины —
+  // из-под потолка, и зал ощущается помещением, а не полем со стенами.
+  const m = new THREE.Mesh(
+    new THREE.PlaneGeometry(L, D),
+    new THREE.MeshStandardMaterial({ color: C.ceiling, roughness: .9, side: THREE.FrontSide })
   );
-  skirt.position.set(0, 0.25, -(D / 2 + 2.98));
-  g.add(skirt);
-
-  // Полоса цвета клуба по верху стены.
-  const band = new THREE.Mesh(
-    new THREE.PlaneGeometry(L, 0.28),
-    new THREE.MeshStandardMaterial({ color: C.club, roughness: .8 })
-  );
-  band.position.set(0, H - 0.5, -(D / 2 + 2.98));
-  g.add(band);
+  m.rotation.x = Math.PI / 2;
+  m.position.y = H;
+  g.add(m);
 }
 
 function applyLight(scene, level, lights){
@@ -103,7 +110,7 @@ function applyLight(scene, level, lights){
                             l.fogNear || 26, l.fogFar || 70);
   if(lights.hemi){
     lights.hemi.color.set(l.sky || 0xbcd0e8);
-    lights.hemi.groundColor.set(l.ground || C.tatami);
+    lights.hemi.groundColor.set(l.ground || C.mat);
     lights.hemi.intensity = l.ambient !== undefined ? l.ambient : 1.1;
   }
   if(lights.sun){
