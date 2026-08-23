@@ -412,14 +412,3 @@ html, body{
   font-size:12px; letter-spacing:.2em; opacity:.5;
   margin-bottom:10px;
 }
-
-/* Метка сборки — только в разработке. В боевой версии этого блока нет.
-   Висит поверх всего, но не перехватывает нажатия. */
-#devmark{
-  position:fixed; left:0; top:0; z-index:999;
-  padding:3px 9px 4px;
-  font-size:10px; letter-spacing:.18em; text-transform:uppercase;
-  color:#1b1b1b; background:#e8b647;
-  border-bottom-right-radius:6px;
-  pointer-events:none;
-}

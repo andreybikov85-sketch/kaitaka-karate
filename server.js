@@ -29,7 +29,11 @@ const MIME = {
 
 http.createServer((req, res) => {
   let rel = decodeURIComponent(req.url.split("?")[0]);
-  if(rel === "/") rel = "/index.html";
+
+  // Папка отдаётся своим index.html — так же, как это делает GitHub Pages.
+  // Иначе локально нельзя открыть /v1/ и проверить боевую сборку: сервер
+  // пытался бы прочитать саму папку и отвечал «не найдено».
+  if(rel.endsWith("/")) rel += "index.html";
 
   const file = path.join(ROOT, path.normalize(rel));
 
