@@ -2,6 +2,7 @@
 
 import * as THREE from "three";
 import { STATE } from "./state.js";
+import { makeMarks } from "./marks.js";
 
 export function makeMakiwara(task, ctx){
   const { level, targets, scene } = ctx;
@@ -16,24 +17,11 @@ export function makeMakiwara(task, ctx){
   let state = STATE.PLAY;
   const p = new THREE.Vector3();
 
-  // Круг досягаемости под каждым снарядом. Без него непонятно, достанешь
-  // отсюда или нет: ребёнок бьёт, ничего не происходит, и он не знает,
-  // подойти ближе или он уже мажет. Круг отвечает до удара, а не после.
-  const rings = [];
-  if(scene){
-    for(let i = 0; i < count; i++){
-      const m = new THREE.Mesh(
-        new THREE.RingGeometry(task.reach - 0.07, task.reach, 40),
-        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true,
-                                      opacity: 0.18, depthWrite: false,
-                                      side: THREE.DoubleSide })
-      );
-      m.rotation.x = -Math.PI / 2;
-      m.position.set(spots[i].x, 0.02, spots[i].z);
-      scene.add(m);
-      rings.push(m);
-    }
-  }
+  // Круг досягаемости под каждым снарядом — тот же знак, что у стартовых
+  // кругов в разминке. Без него непонятно, достанешь отсюда или нет:
+  // ребёнок бьёт, ничего не происходит, и он не знает, подойти ближе
+  // или он уже мажет. Круг отвечает до удара, а не после.
+  const marks = makeMarks(scene, spots, task.reach);
 
   return {
     get state(){ return state; },
@@ -48,7 +36,7 @@ export function makeMakiwara(task, ctx){
       };
     },
 
-    dispose(){ for(const r of rings) r.parent && r.parent.remove(r); },
+    dispose(){ marks.dispose(); },
 
     update(dt, c){
       // Снаряды качаются независимо от состояния — иначе последний удар
@@ -62,11 +50,9 @@ export function makeMakiwara(task, ctx){
 
       const h = c.hero.object.position;
       for(let i = 0; i < count; i++){
-        if(!rings[i]) continue;
         const done = hits[i] >= task.hits;
         const near = Math.hypot(h.x - spots[i].x, h.z - spots[i].z) <= task.reach;
-        rings[i].material.opacity = done ? 0.06 : (near ? 0.62 : 0.18);
-        rings[i].material.color.set(done ? 0x6f7a86 : (near ? 0xe8b647 : 0xffffff));
+        marks.set(i, done ? "done" : (near ? "active" : "idle"));
       }
 
       if(state !== STATE.PLAY) return state;

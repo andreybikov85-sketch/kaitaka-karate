@@ -2,13 +2,21 @@
 //
 // Три круга подряд — приседания, прыжки, отжимания. Задание простое,
 // но именно оно ставит дыхание и учит пользоваться бегом.
+//
+// Обе точки размечены кругами на полу, теми же, что у макивар: старт
+// и дальний край видно сразу, и не надо гадать, докуда бежать.
 
 import { STATE } from "./state.js";
+import { makeMarks } from "./marks.js";
 
 export function makeShuttle(task, ctx){
-  const { level } = ctx;
-  const far  = { x:  level.length / 2 - 2.5, z: 0 };
-  const home = { x: -level.length / 2 + 2.5, z: 0 };
+  const { level, scene } = ctx;
+  const HOME = 0, FAR = 1;
+  const points = [
+    { x: -level.length / 2 + 2.5, z: 0 },   // старт
+    { x:  level.length / 2 - 2.5, z: 0 }    // дальний край
+  ];
+  const marks = makeMarks(scene, points, task.reach);
 
   let round = 0;                 // какой круг идёт
   let phase = "go";              // go | work | back
@@ -16,47 +24,59 @@ export function makeShuttle(task, ctx){
   let left  = task.seconds;
   let state = STATE.PLAY;
   let wasMove = null;            // что боец делал в прошлом кадре
+  let t = 0;
 
-  const цель = () => phase === "back" ? home : far;
+  const цельIdx = () => phase === "back" ? HOME : FAR;
 
   function подсказка(){
     const r = task.rounds[round];
-    if(phase === "go")   return "БЕГИ НА ДАЛЬНИЙ КРАЙ";
-    if(phase === "work") return r.label;
-    return "ВОЗВРАЩАЙСЯ";
+    if(phase === "go")   return "БЕГИ НА ДАЛЬНИЙ КРУГ";
+    if(phase === "work") return r.label + " — " + r.reps + " РАЗ";
+    return "ВОЗВРАЩАЙСЯ В СВОЙ КРУГ";
   }
 
   return {
     get state(){ return state; },
     get left(){ return left; },
-    get mark(){ return phase === "work" ? null : цель(); },
+
+    dispose(){ marks.dispose(); },
 
     hud(){
       const r = task.rounds[round];
       return {
         text: подсказка(),
-        // Полосок столько, сколько кругов: видно, сколько ещё осталось.
+        // Делений столько, сколько кругов: видно, сколько ещё осталось.
         cells: task.rounds.map((rr, i) =>
           i < round ? 1 : (i > round ? 0 : (phase === "work" ? reps / rr.reps : 0))),
-        note: phase === "work" ? reps + " / " + r.reps : (round + 1) + " из " + task.rounds.length
+        note: phase === "work" ? reps + " / " + r.reps : "круг " + (round + 1) + " из " + task.rounds.length
       };
     },
 
     update(dt, c){
+      t += dt;
+      const p = c.hero.object.position;
+
+      // Разметка: где ты и куда надо.
+      const цель = цельIdx();
+      for(const i of [HOME, FAR]){
+        if(i !== цель){ marks.set(i, "idle"); marks.reset(i); continue; }
+        const внутри = Math.hypot(p.x - points[i].x, p.z - points[i].z) <= task.reach;
+        marks.set(i, phase === "work" ? "active" : (внутри ? "active" : "target"));
+        if(внутри) marks.reset(i); else marks.pulse(i, t);
+      }
+
       if(state !== STATE.PLAY) return state;
 
       left -= dt;
       if(left <= 0){ left = 0; state = STATE.LOSE; return state; }
 
       const r = task.rounds[round];
-      const p = c.hero.object.position;
 
       if(phase === "go" || phase === "back"){
-        const t = цель();
-        if(Math.hypot(p.x - t.x, p.z - t.z) <= task.reach){
+        const to = points[цель];
+        if(Math.hypot(p.x - to.x, p.z - to.z) <= task.reach){
           if(phase === "go"){ phase = "work"; reps = 0; }
           else {
-            // Круг закрыт — следующий или конец.
             if(++round >= task.rounds.length){ state = STATE.WIN; return state; }
             phase = "go";
           }
@@ -64,9 +84,8 @@ export function makeShuttle(task, ctx){
         return state;
       }
 
-      // Считаем повторы: упражнение засчитывается, когда доиграло до конца.
-      // По началу считать нельзя — тогда можно было бы дёргать кнопку,
-      // не доводя движение.
+      // Считаем повторы по ОКОНЧАНИЮ движения, а не по началу: иначе
+      // можно было бы дёргать кнопку, не доводя присед.
       if(wasMove === r.move && c.hero.move === null){
         if(++reps >= r.reps) phase = "back";
       }
