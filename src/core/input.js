@@ -13,7 +13,7 @@ const MAP = {
   KeyJ:"punch", KeyZ:"punch",
   KeyK:"kick",  KeyX:"kick",
   KeyL:"block", KeyC:"block",
-  Space:"kiai",
+  Space:"jump",
   Enter:"enter",
   KeyV:"view",
   KeyT:"mode",

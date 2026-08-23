@@ -80,18 +80,27 @@ function realHero(ch, url, clips){
   }
   for(const k in groundFix) groundFix[k] = refGround - groundFix[k];
 
-  // Темп клипа подгоняется под скорость режима: иначе ноги перебирают
-  // отдельно от тела и персонаж скользит.
-  function applyMode(m){
-    mode = MODES[m] || mode;
-    for(const [key, factor] of [["move", 1], ["back", BACK_FACTOR]]){
-      const name = mode[key];
-      const a = ch.actions[name];
-      const gs = LOOPS[name]?.groundSpeed;
-      if(a && gs) a.timeScale = (mode.speed * factor) / gs;
-    }
-  }
+  function applyMode(m){ mode = MODES[m] || mode; }
   applyMode(DEFAULT_MODE);
+
+  // Какой цикл играть при такой скорости — и с какой частотой.
+  //
+  // Клип выбирается по СКОРОСТИ, а не по тому, нажата ли кнопка. Это
+  // важнее, чем кажется: на разгоне и торможении скорость промежуточная,
+  // и клип с постоянным темпом разъезжался бы с телом ровно в эти моменты.
+  // А так частота считается из текущей скорости и совпадает всегда.
+  function pickLoop(m){
+    if(m.speed < 0.12) return { name: mode.idle, rate: 1 };
+
+    const runName = mode.run && ch.actions.run ? "run" : mode.move;
+    const useRun = mode.run && m.speed > mode.speed * 1.15;
+    const name = m.backward ? mode.back : (useRun ? runName : mode.move);
+
+    const gs = LOOPS[name]?.groundSpeed;
+    // Клипа бега может не быть — тогда играем ходьбу быстрее. Выглядит
+    // как спешный шаг, а не как поломка.
+    return { name, rate: gs ? m.speed / gs : 1 };
+  }
 
   // Стойка и движение клипами — если их нет, считаем кодом.
   const cycleFromClips = !!(ch.actions[mode.move] && ch.actions[mode.idle]);
@@ -162,9 +171,16 @@ function realHero(ch, url, clips){
     clips,
     anim: cycleFromClips ? "клипы" : (rig.ok ? "код" : "статуя"),
 
-    // Скорость отхода ниже: пятиться от противника не должно быть
-    // так же выгодно, как идти на него.
-    speedFor(backward){ return mode.speed * (backward ? BACK_FACTOR : 1); },
+    // Настройки перемещения для текущего режима. Отход медленнее
+    // наступления: пятиться от противника не должно быть так же выгодно,
+    // как идти на него.
+    motionCfg(backward){
+      return {
+        walk: mode.speed * (backward ? BACK_FACTOR : 1),
+        run:  mode.run ? mode.run * (backward ? BACK_FACTOR : 1) : null,
+        lockFacing: mode.lock
+      };
+    },
     get speed(){ return mode.speed; },
     get blocking(){ return !!ch.held; },
     get mode(){ return mode; },
@@ -193,7 +209,9 @@ function realHero(ch, url, clips){
       return !!ch.held;
     },
 
-    update(dt, moving, backward){
+    // m — состояние движения из fight/motion.js:
+    // { speed, backward, airborne, running }
+    update(dt, m){
       sinceStrike += dt;
       ch.update(dt);
 
@@ -205,19 +223,19 @@ function realHero(ch, url, clips){
       if(ch.busy) return;
 
       if(cycleFromClips){
-        // Отход — отдельный цикл: боец пятится, не отворачиваясь
-        // от противника. Без него он разворачивался бы спиной к бою.
-        const walkName = (backward && ch.actions[mode.back]) ? mode.back : mode.move;
-        const loop = moving ? walkName : mode.idle;
-        ch.play(loop);
+        const { name, rate } = pickLoop(m);
+        const a = ch.actions[name];
+        if(a) a.timeScale = rate;
+        ch.play(name);
         // Выравниваем посадку под стойку текущего клипа.
-        inner.position.y = baseY + (groundFix[loop] || 0);
+        inner.position.y = baseY + (groundFix[name] || 0);
         return;
       }
       if(!rig.ok) return;
       // Ходьба идёт по своему счётчику, стойка — по общему времени,
       // иначе дыхание сбивалось бы при каждой остановке.
-      t += dt * (moving ? 8.5 : 1);
+      const moving = m.speed > 0.12;
+      t += dt * (moving ? m.speed * 4 : 1);
       moving ? poseWalk(rig, t) : poseIdle(rig, t);
     },
 
@@ -242,14 +260,16 @@ function boxHero(who, beltColor){
     busy: false,
     blocking: false,
     move: null,
-    speedFor(){ return MODES[DEFAULT_MODE].speed; },
+    motionCfg(){ const m = MODES[DEFAULT_MODE];
+      return { walk: m.speed, run: m.run, lockFacing: m.lock }; },
     setMode(){ return MODES[DEFAULT_MODE]; },
     toggleMode(){ return MODES[DEFAULT_MODE]; },
     setBlock(){ return false; },
     attack(){ return false; },
     act(){ return false; },
     strikeNow(){ return null; },
-    update(dt, moving){
+    update(dt, m){
+      const moving = (m?.speed || 0) > 0.12;
       t = moving ? t + dt * 9 : 0;
       animateWalk(fig, t, moving);
     },

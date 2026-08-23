@@ -12,6 +12,7 @@ import { onUpdate, onRender, startLoop } from "./core/loop.js";
 import { showStart } from "./ui/start.js";
 import { profile, saveProfile } from "./core/profile.js";
 import { makeHero } from "./fight/hero.js";
+import { makeMotion } from "./fight/motion.js";
 import { makeSensei } from "./fight/sensei.js";
 import { renderPortrait } from "./ui/portrait.js";
 import { makeTraining, STATE } from "./stages/training.js";
@@ -19,6 +20,9 @@ import { makeTaskUI } from "./ui/task.js";
 import { DOJO } from "./data/levels/dojo.js";
 import { MODES } from "./fight/moves.js";
 import { BELTS } from "./data/belts.js";
+
+const ZERO = { x: 0, z: 0 };
+const dir = { x: 0, z: 0 };
 
 const canvas = document.getElementById("view");
 initRenderer(canvas);
@@ -107,12 +111,14 @@ async function begin(p){
   document.getElementById("belt-swatch").style.background = belt.color;
 
   const pos = hero.object.position;
-  const halfLen = DOJO.length / 2 - 2;
-  const halfDep = DOJO.depth / 2 - 0.6;
 
-  // Персонаж смотрит вдоль своей оси +Z: угол 0 — на камеру в виде сбоку.
-  // Поэтому направление движения переводится в угол как atan2(x, z).
-  let faceTarget = Math.PI / 2;
+  // Перемещение вынесено в fight/motion.js: скорость там разгоняется
+  // и тормозит, а не включается выключателем.
+  const motion = makeMotion(hero.object, {
+    x: DOJO.length / 2 - 2,
+    z: DOJO.depth / 2 - 0.6
+  });
+  let move = { speed: 0, backward: false, airborne: false, running: false };
 
   onUpdate(dt => {
     // Пока сэнсэй объясняет, боец слушает: управление не работает,
@@ -120,7 +126,8 @@ async function begin(p){
     if(stage.state === STATE.BRIEF){
       if(took("enter")) ui.accept();
       if(sensei) sensei.step(dt);
-      hero.update(dt, false, false);
+      move = motion.update(dt, ZERO, hero.motionCfg(false));
+      hero.update(dt, move);
       followShadow(pos.x, pos.z);
       updateCamera(dt, pos);
       return;
@@ -129,7 +136,8 @@ async function begin(p){
 
     // Этап закончился — управление отдаём, но бой уже не идёт.
     if(stage.state !== STATE.PLAY){
-      hero.update(dt, false, false);
+      move = motion.update(dt, ZERO, hero.motionCfg(false));
+      hero.update(dt, move);
       stage.update(dt, hero);            // снаряды докачиваются
       followShadow(pos.x, pos.z);
       updateCamera(dt, pos);
@@ -142,6 +150,7 @@ async function begin(p){
     if(took("punch")) hero.attack();     // связка: цуки → хук → колено
     if(took("view"))  showView(toggleCameraMode());
     if(took("mode"))  showMode(hero.toggleMode());
+    if(took("jump") && !hero.busy) motion.jump();
 
     // Блок держится, пока нажата кнопка.
     hero.setBlock(keys.block);
@@ -152,52 +161,23 @@ async function begin(p){
     const a = screenAxes();
     const side = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
     const fwd  = (keys.up    ? 1 : 0) - (keys.down ? 1 : 0);
+    dir.x = a.fx * fwd + a.rx * side;
+    dir.z = a.fz * fwd + a.rz * side;
 
-    let mx = a.fx * fwd + a.rx * side;
-    let mz = a.fz * fwd + a.rz * side;
-    const moving = !hero.busy && !!(mx || mz);
+    // В виде из-за спины боец разворачивается по ходу движения,
+    // в виде сбоку взгляд ведёт себя по правилам режима.
+    const cfg = hero.motionCfg(move.backward);
+    cfg.lockFacing = a.turnToMove ? false : cfg.lockFacing;
+    cfg.frozen = hero.busy;            // удар и блок держат на месте
 
-    // Идёт ли боец спиной вперёд.
-    let backward = false;
-
-    if(moving){
-      // По диагонали скорость не должна складываться — иначе наискосок
-      // персонаж идёт в полтора раза быстрее, чем прямо.
-      const len = Math.hypot(mx, mz);
-      mx /= len; mz /= len;
-
-      // Куда смотреть. В кумитэ взгляд заперт: от противника не
-      // отворачиваются, вперёд идут лицом, назад пятятся. В тренировке
-      // и в виде из-за спины боец поворачивается по ходу движения.
-      if(a.turnToMove)          faceTarget = Math.atan2(mx, mz);
-      else if(!hero.mode.lock && side) faceTarget = side > 0 ? Math.PI / 2 : -Math.PI / 2;
-
-      // Движение против взгляда — это отход, у него свой цикл и своя скорость.
-      backward = (Math.sin(faceTarget) * mx + Math.cos(faceTarget) * mz) < -0.1;
-
-      const SPEED = hero.speedFor(backward);
-      pos.x += mx * SPEED * dt;
-      pos.z += mz * SPEED * dt;
-    }
-
-    // Плавный разворот по кратчайшей дуге. Мгновенный поворот на 180°
-    // читается как подмена кадра, а не как движение.
-    let d = faceTarget - hero.object.rotation.y;
-    while(d >  Math.PI) d -= Math.PI * 2;
-    while(d < -Math.PI) d += Math.PI * 2;
-    hero.object.rotation.y += d * (1 - Math.exp(-14 * dt));
-
-    hero.update(dt, moving, backward);
+    move = motion.update(dt, dir, cfg);
+    hero.update(dt, move);
 
     // Попадания считаем ПОСЛЕ обновления героя: поза бьющей конечности
     // должна быть уже нынешней, иначе удар засчитывается по вчерашнему
     // положению руки.
     hero.object.updateMatrixWorld(true);
     stage.update(dt, hero);
-
-    // Границы татами.
-    pos.x = Math.max(-halfLen, Math.min(halfLen, pos.x));
-    pos.z = Math.max(-halfDep, Math.min(halfDep, pos.z));
 
     followShadow(pos.x, pos.z);
     updateCamera(dt, pos);
