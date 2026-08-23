@@ -47,6 +47,16 @@ export async function makeSensei(area){
   }
   if(!ch.actions.walk) return null;
 
+  // Клипы приводятся к полу так же, как у героя: они записаны с тазом
+  // на разной высоте, и без выравнивания сэнсэй шёл по воздуху, хотя
+  // стоял правильно — у стойки таз оказался вровень с позой покоя,
+  // а у шага на полметра выше.
+  const refGround = ch.bindGround();
+  for(const name of Object.keys(CLIPS)){
+    if(!ch.actions[name]) continue;
+    ch.shiftClip(name, refGround - ch.measureGround(name));
+  }
+
   // Шаг меряем на самом сэнсэе: он выше ребёнка, и тот же клип проходит
   // у него больше метров.
   const stride = ch.measureStride("walk") || 1.0;
