@@ -204,7 +204,11 @@ async function begin(p){
     // До цели он и так дотягивается автодоворотом в момент удара.
     const cfg = hero.motionCfg(move.backward);
     cfg.lockFacing = a.turnToMove ? false : cfg.lockFacing;
-    cfg.frozen = hero.busy;            // удар и блок держат на месте
+
+    // Удар и блок держат на месте, а прыжок — нет: в воздухе стрелками
+    // можно править, куда приземлиться. Без этого прыжок ощущается
+    // как провал управления: нажал и ждёшь, пока отпустит.
+    cfg.frozen = hero.busy && !move.airborne;
 
     move = motion.update(dt, dir, cfg);
     hero.update(dt, move);

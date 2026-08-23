@@ -174,6 +174,43 @@ export class Character {
     return true;
   }
 
+  // Подвинуть клип по высоте раз и навсегда.
+  //
+  // Клипы приходят из разных записей, и таз в них стоит на разной высоте:
+  // у боевой стойки на 60 см выше позы покоя, у спокойной — почти вровень.
+  // Поправлять это на лету нельзя: во время перехода между двумя такими
+  // клипами всё тело заметно съезжает на полметра — со стороны выглядит
+  // так, будто боец отходит, приседает и возвращается.
+  //
+  // Поэтому поправка вшивается в сам клип. Тогда все позы согласованы
+  // между собой, и смешивать их можно как угодно.
+  shiftClip(name, dy){
+    const a = this.actions[name];
+    if(!a || !dy) return false;
+    const s = this.model.userData.scale || 1;
+    for(const t of a.getClip().tracks){
+      if(!/Hips\.position$/.test(t.name)) continue;
+      for(let i = 1; i < t.values.length; i += 3) t.values[i] += dy / s;
+      return true;
+    }
+    return false;
+  }
+
+  // Убрать у клипа подъём таза целиком, оставив постоянную высоту.
+  // Нужно прыжку: высоту в нём считает игра, и если клип поднимает бойца
+  // сам, подъёмы складываются — получается прыжок внутри прыжка.
+  flattenClip(name){
+    const a = this.actions[name];
+    if(!a) return false;
+    for(const t of a.getClip().tracks){
+      if(!/Hips\.position$/.test(t.name)) continue;
+      const y0 = t.values[1];
+      for(let i = 1; i < t.values.length; i += 3) t.values[i] = y0;
+      return true;
+    }
+    return false;
+  }
+
   // Высота стопы в позе покоя — эталон «подошва на полу».
   //
   // При загрузке модель ставится так, что низ габаритов лежит на нуле,
@@ -350,6 +387,7 @@ export async function loadCharacter(url, targetHeight = HEIGHT.child){
   box.getSize(size);
   const scale = size.y > 0 ? targetHeight / size.y : 1;
   fbx.scale.setScalar(scale);
+  fbx.userData.scale = scale;      // нужен, чтобы править дорожки в единицах модели
 
   // Ставим ногами на пол: после масштабирования низ габаритов должен быть в нуле.
   fbx.position.y = -box.min.y * scale;
